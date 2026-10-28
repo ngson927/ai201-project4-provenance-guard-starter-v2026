@@ -33,6 +33,30 @@ CLEARLY_AI = (
     "technical experts, policymakers, and the broader community."
 )
 
+CLEARLY_AI_2 = (
+    "Time management is an essential skill for students who want to achieve "
+    "academic success. By prioritizing tasks and setting realistic goals, "
+    "students can reduce stress and improve their overall productivity. One "
+    "effective strategy is to break large assignments into smaller, more "
+    "manageable steps. Additionally, using tools such as calendars and "
+    "to-do lists can help students stay organized and on track. It is also "
+    "important to schedule regular breaks to maintain focus and prevent "
+    "burnout. In conclusion, developing strong time management habits can "
+    "lead to better grades and a healthier work-life balance."
+)
+
+CLEARLY_AI_3 = (
+    "Climate change is one of the most pressing challenges facing humanity "
+    "today. Rising global temperatures are leading to more frequent extreme "
+    "weather events, melting ice caps, and rising sea levels. These changes "
+    "have significant impacts on ecosystems, agriculture, and human health. "
+    "To address this issue, governments, businesses, and individuals must "
+    "work together to reduce greenhouse gas emissions. Transitioning to "
+    "renewable energy sources, improving energy efficiency, and protecting "
+    "forests are all crucial steps. By taking action now, we can help "
+    "ensure a sustainable future for generations to come."
+)
+
 # The same text after a quick human pass: contractions, one sentence cut
 # short, one aside, two words swapped. The kind of edit that takes a minute.
 LIGHTLY_EDITED_AI = (
@@ -70,6 +94,29 @@ FORMAL_HUMAN = (
     "any member of a civilized community, against his will, is to prevent "
     "harm to others. His own good, either physical or moral, is not a "
     "sufficient warrant."
+)
+
+# Herman Melville, Moby-Dick (1851), ch. 1. Public domain.
+CLEARLY_HUMAN_2 = (
+    "Call me Ishmael. Some years ago—never mind how long precisely—having "
+    "little or no money in my purse, and nothing particular to interest me "
+    "on shore, I thought I would sail about a little and see the watery part "
+    "of the world. It is a way I have of driving off the spleen and "
+    "regulating the circulation. Whenever I find myself growing grim about "
+    "the mouth; whenever it is a damp, drizzly November in my soul; whenever "
+    "I find myself involuntarily pausing before coffin warehouses, and "
+    "bringing up the rear of every funeral I meet; then, I account it high "
+    "time to get to sea as soon as I can."
+)
+
+# Henry David Thoreau, Walden (1854), ch. 1. Public domain.
+CLEARLY_HUMAN_3 = (
+    "When I wrote the following pages, or rather the bulk of them, I lived "
+    "alone, in the woods, a mile from any neighbor, in a house which I had "
+    "built myself, on the shore of Walden Pond, in Concord, Massachusetts, "
+    "and earned my living by the labor of my hands only. I lived there two "
+    "years and two months. At present I am a sojourner in civilized life "
+    "again."
 )
 
 PLAIN_HUMAN = (

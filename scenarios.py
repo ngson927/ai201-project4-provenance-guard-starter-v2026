@@ -22,49 +22,67 @@ A scenario carries **either** of these:
               because you cannot express "the field is missing" as a string.
 """
 
+from calibrate import (
+    CLEARLY_AI, CLEARLY_AI_2, CLEARLY_AI_3,
+    CLEARLY_HUMAN, CLEARLY_HUMAN_2, CLEARLY_HUMAN_3,
+    FORMAL_HUMAN, LIGHTLY_EDITED_AI, VARIED_AI,
+)
+
+# The inputs criteria.md names, word for word. Criteria 2 and 3 share the
+# clearly-AI and clearly-human sets; criterion 2 adds the borderline one.
+
 SCENARIOS = [
     {
         "name": "my own writing",
         "criterion": 1,
-        # ⚠️ PUT YOUR OWN WRITING HERE. Not AI text, not a sample from the web —
-        # things you actually wrote. This is the criterion that matters most and
-        # it's meaningless with someone else's prose.
+        # ⚠️ Ten pieces I actually wrote. The FIRST THREE are the plain ones —
+        # short sentences, everyday words — that criterion 1 says must never
+        # be labelled AI. run_eval.py refuses to run until these are real.
         "texts": [
-            "REPLACE ME with a paragraph you wrote yourself.",
-            "REPLACE ME with another one. Ten pieces is the usual number.",
+            "REPLACE ME — plain piece 1 of 3 (short sentences, everyday words).",
+            "REPLACE ME — plain piece 2 of 3.",
+            "REPLACE ME — plain piece 3 of 3.",
+            "REPLACE ME — my own writing, piece 4.",
+            "REPLACE ME — my own writing, piece 5.",
+            "REPLACE ME — my own writing, piece 6.",
+            "REPLACE ME — my own writing, piece 7.",
+            "REPLACE ME — my own writing, piece 8.",
+            "REPLACE ME — my own writing, piece 9.",
+            "REPLACE ME — my own writing, piece 10.",
         ],
     },
     {
-        "name": "label coverage",
+        "name": "clearly AI",
+        "criterion": 3,   # also half of criterion 2's nine inputs
+        # Unedited model output on stock essay topics.
+        "texts": [CLEARLY_AI, CLEARLY_AI_2, CLEARLY_AI_3],
+    },
+    {
+        "name": "clearly human",
+        "criterion": 3,   # also part of criterion 2's nine inputs
+        # Published before language models existed: Twain, Melville, Thoreau.
+        "texts": [CLEARLY_HUMAN, CLEARLY_HUMAN_2, CLEARLY_HUMAN_3],
+    },
+    {
+        "name": "borderline",
         "criterion": 2,
-        # Inputs spread across your score range, so you can check all three
-        # labels are actually reachable.
-        "texts": [
-            "REPLACE ME with something you're confident is AI-generated.",
-            "REPLACE ME with something you're confident is human-written.",
-            "REPLACE ME with something genuinely borderline.",
+        # Lightly-edited AI, AI with deliberately varied rhythm, and Mill's
+        # formal prose — each one sits between the two clear sets.
+        "texts": [LIGHTLY_EDITED_AI, VARIED_AI, FORMAL_HUMAN],
+    },
+    {
+        "name": "bad input",
+        "criterion": 4,
+        "bodies": [
+            {"text": "", "creator_id": "eval_bad_empty"},
+            {"creator_id": "eval_bad_missing"},          # no text field at all
+            {"text": None, "creator_id": "eval_bad_null"},
+            {"text": "word " * 50000, "creator_id": "eval_bad_huge"},
+            {"text": CLEARLY_AI},                        # no creator_id
         ],
     },
-    # A bad-input criterion looks like this. Uncomment and adjust if that's one
-    # of your five — these are raw request bodies, sent exactly as written.
-    #
-    # {
-    #     "name": "bad input",
-    #     "criterion": 3,
-    #     "bodies": [
-    #         {"text": "", "creator_id": "eval_bad_empty"},
-    #         {"creator_id": "eval_bad_missing"},          # no text field at all
-    #         {"text": "word " * 50000, "creator_id": "eval_bad_huge"},
-    #         {"text": None, "creator_id": "eval_bad_null"},
-    #     ],
-    # },
-
-    # TODO: add what your remaining criteria need.
-    #
-    # A criterion about the appeal path can't be tested by sending text alone;
-    # it needs a submission first and then an appeal against the content_id
-    # that came back. You'll need to test that one by hand, or extend this file
-    # and run_eval.py to do it. Saying which you did is part of the write-up.
+    # Criterion 5 (appeals) can't be expressed here: it needs the content_id a
+    # submission returns. It's tested by hand with curl — see criteria.md.
 ]
 
 

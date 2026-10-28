@@ -45,57 +45,71 @@ Two things worth knowing before you pick numbers:
 
 ## 1. Real writers, including plain ones, are not called AI
 
-Of 10 pieces of my own writing, at least 3 of them written plainly on purpose
-(short sentences, everyday words), **at most 1 is labelled high-confidence AI,
-and none of the plain ones are**. This must hold in every one of the three
+Submit the 10 texts in the `my own writing` scenario in `scenarios.py`
+(`python run_eval.py` does this, three trials). They are pieces I wrote
+myself, and the first 3 are written plainly on purpose: short sentences,
+everyday words. Read the `guess` field of each response. **At most 1 of the
+10 is `"ai"`, and none of the first 3 are**, in every one of the three
 trials.
 
 **Why this target:** On a writing site a wrong accusation costs the writer far
 more than a missed detection costs the site. Plain writing is exactly where
-both my signals are blind (DESIGN.md §3), so I name it separately rather than
-let it hide inside an average. If those pieces get flagged, the thresholds are
-wrong, whatever the overall number says.
+both my signals are blind. On calibration a plain paragraph scored 0.85 on the
+model signal and 0.807 combined, only 0.04 under my 0.85 AI threshold
+(DESIGN.md §3, README → Calibration). So I name plain writing separately
+rather than let it hide inside an average. If those pieces get flagged, the
+threshold is wrong, whatever the overall number says.
 
 ---
 
 ## 2. All three labels are reachable
 
-Across a set of 9 inputs (3 clearly AI-generated, 3 clearly human, 3 I judge
-borderline), **each of the three labels (`human`, `unsure`, `ai`) appears at
-least once in every trial**.
+Submit the 9 texts in the `clearly AI`, `clearly human` and `borderline`
+scenarios in `scenarios.py`:
+- **clearly AI:** 3 unedited model essays;
+- **clearly human:** Twain, Melville and Thoreau, all published before
+  language models existed;
+- **borderline:** lightly-edited AI, AI with deliberately varied rhythm, and
+  Mill.
 
-**Why this target:** A label no score can produce is a gap in the ranges, and
-a service that can only ever say "unsure" isn't a detector. Requiring all
-three in *every* trial means one lucky run can't hide a label that is only
-barely reachable.
+Read each response's `guess`. **Each of `"human"`, `"unsure"` and `"ai"`
+appears at least once, in every one of the three trials.**
+
+**Why this target:** My unsure band is wide (above 0.42, below 0.85), and "AI"
+needs both signals at about 0.70 or more. That makes the two outer labels
+easy to squeeze out. A service that can only say "unsure" isn't a detector.
+Requiring all three in *every* trial means one lucky run can't hide a label
+that is only barely reachable.
 
 ---
 
 ## 3. Clearly-AI and clearly-human text are far apart
 
-On the same 3 clearly-AI and 3 clearly-human inputs, **the mean `confidence`
-of the AI texts is at least 0.30 higher than the mean of the human texts**,
-and **no clearly-human text scores above any clearly-AI text**, in every
-trial.
+Submit the 3 `clearly AI` and 3 `clearly human` texts in `scenarios.py` and
+read each response's `confidence`. **The mean of the AI three is at least
+0.30 higher than the mean of the human three, and the highest human score is
+below the lowest AI score**, in every one of the three trials.
 
-**Why this target:** My labels need room between them. A gap of 0.30 is the
-width of the planned unsure band, so smaller than that and the two groups
-land in the same band and the labels mean nothing. The "no overlap" half
-catches a mean that looks fine while one human text sits among the AI ones.
+**Why this target:** If clear cases from each side don't sit well apart, no
+placement of my thresholds (0.42 and 0.85) can separate them. A gap of 0.30
+was the width of the unsure band I planned in Milestone 1. The "no overlap"
+half catches a mean that looks fine while one human text sits among the AI
+ones. That is exactly what the plain writer does to the model signal.
 
 ---
 
 ## 4. Bad input gets a clear refusal, never a crash
 
-Of these 5 malformed requests:
+Send the 5 bodies in the `bad input` scenario in `scenarios.py`:
 - empty `text`;
 - no `text` field;
 - `text: null`;
 - 50,000 words of text;
 - no `creator_id`;
 
-**all 5 return HTTP 400 with a JSON body containing an `error` code, 0 return
-a 500, and all 5 appear in the audit log as `rejected` entries**.
+**All 5 return HTTP 400 with a JSON body containing an `error` code, 0 return
+a 500**, and `GET /log?limit=5` afterwards shows **5 entries with
+`"status": "rejected"`**.
 
 **Why this target:** A crash on malformed input is one of the most common real
 failures, and unit 8's attack set will send exactly this. A 500 tells the
@@ -106,10 +120,15 @@ Refusing too-short or enormous text is better than guessing at it.
 
 ## 5. Every appeal changes status and is recorded
 
-For 5 submissions followed by an appeal on each returned `content_id`, **5 of
-5 appeals return HTTP 200 with `status: "under_review"`, and the log then has,
-for each id, the original `decided` entry followed by an `appeal` entry**. An
-appeal on a made-up `content_id` returns **404**, not 200.
+Tested by hand with curl, since it needs the `content_id` a submission
+returns:
+1. Submit any 5 texts to `POST /submit`.
+2. `POST /appeal` each returned `content_id` with any non-empty `reasoning`.
+3. Then `POST /appeal` once with `"content_id": "not-a-real-id"`.
+
+**5 of 5 real appeals return HTTP 200 with `"status": "under_review"`.**
+`GET /log` shows, for each of the 5 ids, **the `"decided"` entry followed by
+an `"event": "appeal"` entry**. **The made-up id returns 404**, not 200.
 
 **Why this target:** The appeal is the only thing between a wrong accusation
 and nothing at all, so "usually works" isn't good enough. It has to be 5 of 5.
