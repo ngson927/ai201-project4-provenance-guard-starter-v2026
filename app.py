@@ -336,6 +336,38 @@ def appeal():
     })
 
 
+@app.get("/content/<content_id>")
+def content_status(content_id):
+    """
+    One item's current state — stretch feature, declared in the README first.
+
+    Status comes from the latest entry, so an appealed item reads
+    `under_review`. The appeal's reasoning is left out: that's for the
+    reviewer, not for anyone who has the id. Read-only — never writes.
+    """
+    entries = audit.entries_for(content_id)
+    decision = next((e for e in entries if e.get("status") == "decided" and "event" not in e), None)
+    if decision is None:
+        return jsonify({
+            "error": "unknown_content_id",
+            "message": "We couldn't find a submission with that content_id. Check it was copied exactly.",
+        }), 404
+
+    appeal_entry = next((e for e in entries if e.get("event") == "appeal"), None)
+    return jsonify({
+        "content_id": content_id,
+        "creator_id": decision.get("creator_id"),
+        "status": entries[-1].get("status"),
+        "guess": decision.get("guess"),
+        "label": decision.get("label"),
+        "confidence": decision.get("combined_score"),
+        "model_score": decision.get("model_score"),
+        "style_score": decision.get("style_score"),
+        "submitted_at": decision.get("timestamp"),
+        "appealed_at": appeal_entry.get("timestamp") if appeal_entry else None,
+    })
+
+
 # ── Already works ─────────────────────────────────────────────────────────────
 
 @app.get("/log")

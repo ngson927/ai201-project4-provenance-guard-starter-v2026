@@ -381,6 +381,38 @@ reading the whole audit log.
   for anyone who happens to have the id.
 - **No writes:** it never changes the log.
 
+**Built** in `app.py::content_status`, as planned above. This is the writer
+from Sample Run after their appeal:
+
+```bash
+$ curl http://127.0.0.1:5000/content/eee1e5c5-1df1-487e-91be-2a06f4a484ca
+```
+
+```json
+{
+  "appealed_at": "2026-10-28T23:42:51+00:00",
+  "confidence": 0.8069,
+  "content_id": "eee1e5c5-1df1-487e-91be-2a06f4a484ca",
+  "creator_id": "student-9",
+  "guess": "unsure",
+  "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+  "model_score": 0.847,
+  "status": "under_review",
+  "style_score": 0.7667,
+  "submitted_at": "2026-10-28T23:42:51+00:00"
+}
+```
+
+An item with no appeal returns `"status": "decided"` and `"appealed_at":
+null`. A made-up id returns **404** `unknown_content_id`.
+
+**What it changed:**
+- **For the writer:** they can now see that their appeal landed and that the
+  label is under review, without access to the full audit log.
+- **For the log:** nothing. The route only reads.
+- **For unit 8:** it's another route an attacker can probe, and a run of
+  404s from it would mean someone is guessing ids.
+
 ---
 
 ## How I Used AI
