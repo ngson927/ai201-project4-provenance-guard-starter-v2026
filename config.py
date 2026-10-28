@@ -75,9 +75,10 @@ SPLIT_GAP = 0.40
 # getting through. There is no setting that avoids the trade — only settings
 # that decide who pays for it.
 
-# Provisional (Milestone 4) — finalised in Milestone 5. AI_THRESHOLD sits
-# above the plain human writer from DESIGN.md §3 (0.807 on the calibration
-# set), so an average of 0.85 needs BOTH signals at 0.70 or more.
+# AI_THRESHOLD sits above the plain human writer from DESIGN.md §3 (0.807 on
+# the calibration set), so an average of 0.85 needs BOTH signals at 0.70 or
+# more. HUMAN_THRESHOLD sits above the two clearly-human inputs (0.369, 0.398)
+# and below every AI input that isn't split (lowest 0.667).
 HUMAN_THRESHOLD = 0.42
 AI_THRESHOLD = 0.85
 

@@ -98,12 +98,37 @@ def score_to_label(score: float) -> tuple[str, str]:
     think if they got it on their own work. That question is the whole
     milestone.
     """
-    # TODO: replace this — thresholds are in config.py
     if score >= config.AI_THRESHOLD:
-        return "ai", "PLACEHOLDER — write the high-confidence AI label."
+        return "ai", LABEL_AI
     if score <= config.HUMAN_THRESHOLD:
-        return "human", "PLACEHOLDER — write the high-confidence human label."
-    return "unsure", "PLACEHOLDER — write the unsure label."
+        return "human", LABEL_HUMAN
+    return "unsure", LABEL_UNSURE
+
+
+# The exact text a reader sees — copied word for word into README → Label
+# Variants. None of them states AI authorship as fact, and both that can
+# land on a real writer say how to ask for a person to look.
+
+LABEL_HUMAN = (
+    "We think this was most likely written by a person. Our automated checks "
+    "didn't find the patterns we usually see in AI-generated writing."
+)
+
+LABEL_UNSURE = (
+    "We can't tell either way, so we're not making a call on this piece. It "
+    "has some patterns that show up in both human and AI writing — and a lot "
+    "of writing people do themselves lands here, especially clear, "
+    "straightforward writing. Nothing about this result says you did "
+    "anything wrong. If you'd like a person to take a look, you can ask for "
+    "a review."
+)
+
+LABEL_AI = (
+    "Our automated checks found strong patterns that are common in "
+    "AI-generated writing. This is an estimate, not proof: the checks can be "
+    "wrong, especially about plain, straightforward writing. If you wrote "
+    "this yourself, you can ask for a review and a person will look at it."
+)
 
 
 def label_ranges() -> list[tuple[str, str]]:

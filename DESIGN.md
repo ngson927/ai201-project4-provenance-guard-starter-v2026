@@ -269,7 +269,8 @@ Side effect: one `audit.log_appeal` entry (`event: "appeal"`,
 `status: "under_review"`, with the reasoning) appended after the original
 decision. Nothing is deleted or rewritten.
 
-**Errors**
+**Errors.** Each is also written with `audit.log_rejection`, the same as for
+`/submit`. A run of 404s is someone guessing ids.
 
 | Status | `error` | When |
 |---|---|---|

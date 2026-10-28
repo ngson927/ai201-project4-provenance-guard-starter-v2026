@@ -157,6 +157,7 @@ def health():
 MIN_TEXT_WORDS = 20
 MAX_TEXT_CHARS = 10_000
 MAX_CREATOR_ID_CHARS = 100
+MAX_REASONING_CHARS = 2_000
 
 @app.post("/submit")
 # @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
@@ -243,8 +244,6 @@ def submit():
     style_score = stylometry.style_signal(text)
     confidence = scoring.combine_signals(model_score, style_score)
 
-    # Milestone 4: the guess comes from the real score; the label text is
-    # still a placeholder until Milestone 5.
     guess, label = scoring.score_to_label(confidence)
 
     audit.log_decision(
@@ -295,14 +294,46 @@ def appeal():
     to the person on the other end. It's the only thing standing between a
     wrong accusation and nothing at all.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _refuse("unknown", "invalid_json", "Send a JSON object with 'content_id' and 'reasoning'.")
 
-    # TODO: delete this and build the route.
+    content_id = payload.get("content_id")
+    if not isinstance(content_id, str) or not content_id.strip():
+        return _refuse("unknown", "missing_content_id",
+                       "Send the 'content_id' you got back when you submitted your writing.")
+    content_id = content_id.strip()
+
+    reasoning = payload.get("reasoning")
+    if not isinstance(reasoning, str) or not reasoning.strip() or len(reasoning) > MAX_REASONING_CHARS:
+        return _refuse("unknown", "missing_reasoning",
+                       f"Tell us in 'reasoning' why you think we got it wrong "
+                       f"(1 to {MAX_REASONING_CHARS:,} characters).")
+    reasoning = reasoning.strip()
+
+    entries = audit.entries_for(content_id)
+    decision = next((e for e in entries if e.get("status") == "decided" and "event" not in e), None)
+    if decision is None:
+        return _refuse("unknown", "unknown_content_id",
+                       "We couldn't find a submission with that content_id. Check it was copied exactly.",
+                       status=404)
+
+    # The creator comes from the original decision, never the request — so
+    # nobody can appeal under someone else's name.
+    creator_id = decision.get("creator_id", "unknown")
+    if any(e.get("event") == "appeal" for e in entries):
+        return _refuse(creator_id, "already_under_review",
+                       "This one is already waiting for a person to review it.", status=409)
+
+    audit.log_appeal(content_id=content_id, creator_id=creator_id, reasoning=reasoning)
+
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+        "content_id": content_id,
+        "status": "under_review",
+        "original_guess": decision.get("guess"),
+        "message": "Thanks — your appeal has been recorded and a person will review this "
+                   "decision. Until then, the automated label is not a final judgement.",
+    })
 
 
 # ── Already works ─────────────────────────────────────────────────────────────

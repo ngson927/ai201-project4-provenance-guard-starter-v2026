@@ -137,8 +137,8 @@ signals at 0.70 or above, so neither signal can make the call alone.
 |---|---|---|
 | `WEIGHT_MODEL_SIGNAL` / `WEIGHT_STYLE_SIGNAL` | 0.5 / 0.5 | Neither is more trustworthy. The model signal is biased against plain writers, and the style signal is cheap to game |
 | `SPLIT_GAP` | 0.40 | A gap this size means the signals point opposite ways. On the calibration set only the deliberately split case reaches it. The largest ordinary gap is 0.23 |
-| `HUMAN_THRESHOLD` | 0.42 | Provisional, finalised in Milestone 5 |
-| `AI_THRESHOLD` | 0.85 | Provisional. Set above the plain human writer (0.807) rather than at the starter's 0.65, per the DESIGN.md §3 trace |
+| `HUMAN_THRESHOLD` | 0.42 | Above both clearly-human inputs (0.369, 0.398) and below every AI input that isn't split (lowest 0.667) |
+| `AI_THRESHOLD` | 0.85 | Set above the plain human writer (0.807) rather than at the starter's 0.65, per the DESIGN.md §3 trace |
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -203,14 +203,35 @@ rule returns 0.5 and the reader gets "unsure" instead.
 
 | Label | Score range | The exact text a reader sees |
 |---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
+| high-confidence human | 0.00 – 0.42 | We think this was most likely written by a person. Our automated checks didn't find the patterns we usually see in AI-generated writing. |
+| unsure | above 0.42, below 0.85 | We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing — and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review. |
+| high-confidence AI | 0.85 – 1.00 | Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it. |
+
+Scores of exactly 0.42 get the human label, and exactly 0.85 the AI label, so
+every score lands in exactly one band. I reached all three with real
+submissions: the clearly-AI text gave `ai` (0.9247), the plain human text
+`unsure` (0.8069) and Twain `human` (0.3982). The text lives in
+`scoring.py` as `LABEL_HUMAN`, `LABEL_UNSURE` and `LABEL_AI`.
 
 **Why I worded the "unsure" one this way:**
 <!-- It's the hardest of the three. It has to admit uncertainty without
      sounding like an accusation, because the person reading it may well have
      written every word themselves. -->
+
+The person most likely to read it is the plain writer from DESIGN.md §3. With
+my thresholds, "unsure" is where that person lands (0.807). So it does four
+things:
+- **Starts with what we don't know.** "We can't tell either way" comes before
+  anything about AI.
+- **Explains why clear writing lands here,** so a careful, simple writer
+  doesn't read it as a judgement on their style.
+- **Says outright that nothing here means they did anything wrong.**
+- **Offers a person without making it sound like a defence they owe.**
+
+It never uses "suspicious", "flagged" or "detected". The AI label is the
+only one that mentions AI patterns as a finding, and even that one calls
+itself an estimate, names who it gets wrong, and says how to get a person to
+look.
 
 
 
@@ -228,26 +249,24 @@ rule returns 0.5 and the reader gets "unsure" instead.
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
-_Milestone 3 run: one signal only, so `style_score`, `confidence` and
-`label` are still placeholders. This gets replaced with a full run in
-Milestone 5._
+The plain writer from DESIGN.md §3, end to end.
 
 ```bash
 $ curl -X POST http://127.0.0.1:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "Artificial intelligence has transformed numerous industries in recent years. It offers significant benefits in terms of efficiency, accuracy, and scalability. However, it is important to consider the ethical implications of these technologies.", "creator_id": "student-42"}'
+  -d '{"text": "I moved to this city two years ago for my job. At first it was very hard because I did not know anyone. I worked every day and I went home every night. Then I started to go to a running club on Saturday. Now I have some good friends there. We run in the park and after we drink coffee together. I think it is important to try new things when you are lonely. It is not easy but it is worth it.", "creator_id": "student-9"}'
 ```
 
 ```json
 {
-  "confidence": null,
-  "content_id": "d8f13232-a763-40b4-9b95-b6b245d0c70b",
-  "creator_id": "student-42",
+  "confidence": 0.8069,
+  "content_id": "eee1e5c5-1df1-487e-91be-2a06f4a484ca",
+  "creator_id": "student-9",
   "guess": "unsure",
-  "label": "PLACEHOLDER \u2014 labels are written in Milestone 5.",
-  "model_score": 0.8848,
+  "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing — and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+  "model_score": 0.847,
   "status": "decided",
-  "style_score": null
+  "style_score": 0.7667
 }
 ```
 
@@ -284,51 +303,53 @@ predicted.
 ```bash
 $ curl -X POST http://127.0.0.1:5000/appeal \
   -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
-```
-
-```json
-(POST /appeal is built in Milestone 5)
-```
-
-**What the log shows afterwards**
-
-```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+  -d '{"content_id": "eee1e5c5-1df1-487e-91be-2a06f4a484ca", "reasoning": "I wrote this myself about my first year in the city. English is my second language, so I keep my sentences simple."}'
 ```
 
 ```json
 {
-  "count": 3,
+  "content_id": "eee1e5c5-1df1-487e-91be-2a06f4a484ca",
+  "message": "Thanks \u2014 your appeal has been recorded and a person will review this decision. Until then, the automated label is not a final judgement.",
+  "original_guess": "unsure",
+  "status": "under_review"
+}
+```
+
+Also checked: a second appeal on the same id gives **409**
+`already_under_review`, a made-up `content_id` gives **404**
+`unknown_content_id`, and missing reasoning or a non-JSON body gives **400**.
+
+**What the log shows afterwards**
+
+```bash
+$ curl "http://127.0.0.1:5000/log?limit=2"
+```
+
+The original decision stays where it was. The appeal is appended after it
+with `status: "under_review"`.
+
+```json
+{
+  "count": 2,
   "entries": [
     {
-      "creator_id": "unknown",
-      "event": "rejected",
-      "reason": "missing_creator_id",
-      "status": "rejected",
-      "timestamp": "2026-10-28T23:35:56+00:00"
-    },
-    {
-      "combined_score": null,
-      "content_id": "4bc3c398-cb0c-4aee-973b-44b9189fdeba",
-      "creator_id": "student-7",
-      "guess": "unsure",
-      "label": "PLACEHOLDER \u2014 labels are written in Milestone 5.",
-      "model_score": 0.28,
-      "status": "decided",
-      "style_score": null,
-      "timestamp": "2026-10-28T23:35:56+00:00"
-    },
-    {
-      "combined_score": null,
-      "content_id": "1233983a-1de5-4b5e-b743-325dbb550d94",
+      "combined_score": 0.8069,
+      "content_id": "eee1e5c5-1df1-487e-91be-2a06f4a484ca",
       "creator_id": "student-9",
       "guess": "unsure",
-      "label": "PLACEHOLDER \u2014 labels are written in Milestone 5.",
-      "model_score": 0.8508,
+      "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+      "model_score": 0.847,
       "status": "decided",
-      "style_score": null,
-      "timestamp": "2026-10-28T23:35:56+00:00"
+      "style_score": 0.7667,
+      "timestamp": "2026-10-28T23:42:51+00:00"
+    },
+    {
+      "content_id": "eee1e5c5-1df1-487e-91be-2a06f4a484ca",
+      "creator_id": "student-9",
+      "event": "appeal",
+      "reasoning": "I wrote this myself about my first year in the city. English is my second language, so I keep my sentences simple.",
+      "status": "under_review",
+      "timestamp": "2026-10-28T23:42:51+00:00"
     }
   ]
 }
