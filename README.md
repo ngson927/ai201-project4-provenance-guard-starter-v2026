@@ -1,5 +1,8 @@
 # Provenance Guard
 
+**Repository (submitted for units 7 and 8; do not recreate):**
+https://github.com/ngson927/ai201-project4-provenance-guard-starter-v2026
+
 > ### 👋 Start here
 >
 > **New to this repo? Read [RUNNING.md](RUNNING.md) first.**
@@ -359,17 +362,44 @@ with `status: "under_review"`.
 
 ## How I Used AI
 
-**Moment 1**
+I used Claude Code (Claude Opus 5.5) as a pair through all six milestones. I
+gave it each milestone's brief, it wrote and ran the code, and I checked the
+numbers it produced before each commit.
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+**Moment 1: the false-positive prediction, and the threshold it moved**
 
-**Moment 2**
+- *What I asked for:* the Milestone 1 trace. That meant following a real
+  writer who gets called AI through the service and predicting their score
+  before any code existed.
+- *What came back:* a second-language writer with plain, short sentences,
+  and a predicted model score of about 0.79 worked out from the formula in
+  `detector.py`. It proposed raising `AI_THRESHOLD` from the starter's 0.65
+  to "around 0.80".
+- *What I changed:* the prediction was wrong, and running it is how I found
+  out. In Milestone 3 the plain paragraph actually scored **0.85** on signal
+  one, nearly the same as the AI text (0.89). In Milestone 4 its combined
+  score was 0.807, so a threshold of 0.80 would still have accused that
+  writer. I moved `AI_THRESHOLD` to **0.85** and accepted the cost: the
+  lightly-edited AI text now gets "unsure" instead of "AI". A threshold
+  taken from the paper trace would have shipped the exact false positive the
+  trace was written to prevent.
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+**Moment 2: the vocabulary measure that pointed the wrong way**
+
+- *What I asked for:* signal two, built from the three measures the starter
+  names, including type–token ratio, using the starter's hypothesis that AI
+  text has a narrower vocabulary.
+- *What came back:* the three measures implemented. A moving-average
+  type–token ratio was there so short and long texts could be compared.
+- *What I changed:* before scaling anything I printed the raw measures over
+  the calibration set (`python calibrate.py --raw`). Type–token ratio came
+  out *highest* for the AI paragraph (0.90) and lowest for Twain (0.71), the
+  opposite of the hypothesis, across a narrow range. I took it out of the
+  score, kept the function so it's still reported, and replaced it with a
+  mid-length-sentence reading. Unlike signal one, that reading does *not*
+  reward short plain sentences, so the two signals stop sharing a blind spot
+  for the plain writer. Had I averaged in the starter's version, it would
+  have pushed AI text toward "human".
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
@@ -499,16 +529,16 @@ that produced it:
 
      SUBMISSION CHECKLIST — unit 7
 
-       [ ] criteria.md has five numbered criteria, each naming a target
-       [ ] Each has a reason underneath
-       [ ] POST /submit returns content_id, guess, confidence, label,
+       [x] criteria.md has five numbered criteria, each naming a target
+       [x] Each has a reason underneath
+       [x] POST /submit returns content_id, guess, confidence, label,
            model_score and style_score
-       [ ] Two signals that measure DIFFERENT things, each with a named blind spot
-       [ ] Three label variants, all reachable, written out in full
-       [ ] POST /appeal changes status and writes to the log
-       [ ] Signals and Scoring names scoring.py::combine_signals
-       [ ] Sample Run: a submission AND an appeal, as pasted text
-       [ ] At least four new commits
+       [x] Two signals that measure DIFFERENT things, each with a named blind spot
+       [x] Three label variants, all reachable, written out in full
+       [x] POST /appeal changes status and writes to the log
+       [x] Signals and Scoring names scoring.py::combine_signals
+       [x] Sample Run: a submission AND an appeal, as pasted text
+       [x] At least four new commits
        [ ] Repository URL submitted — WRITE IT DOWN
 
      SUBMISSION CHECKLIST — unit 8
