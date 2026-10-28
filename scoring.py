@@ -51,12 +51,25 @@ def combine_signals(model_score: float, style_score: float) -> float:
 
     The weights in config.py are placeholders. Change them, or ignore them and
     write a different rule.
+
+    Mine (README → The combining rule):
+
+      1. If the signals are SPLIT_GAP or more apart, return 0.5. They
+         contradict each other, and an average would hide that behind a
+         confident-looking number — AI text with deliberately varied rhythm
+         averages to "human" otherwise.
+      2. Otherwise, the weighted average.
+
+    The thresholds do the rest: with AI_THRESHOLD at 0.85, "AI" needs both
+    signals at 0.70 or more, so neither can make that call alone.
     """
-    # TODO: replace this
-    return (
+    if abs(model_score - style_score) >= config.SPLIT_GAP:
+        return 0.5
+    score = (
         config.WEIGHT_MODEL_SIGNAL * model_score
         + config.WEIGHT_STYLE_SIGNAL * style_score
-    )
+    ) / (config.WEIGHT_MODEL_SIGNAL + config.WEIGHT_STYLE_SIGNAL)
+    return round(score, 4)
 
 
 def score_to_label(score: float) -> tuple[str, str]:

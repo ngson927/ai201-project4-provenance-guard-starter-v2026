@@ -124,17 +124,72 @@ two signals aren't independent witnesses for them.
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:**
+**The rule:** Average the two signals with equal weight. When they disagree
+sharply, don't average: return 0.5, a coin flip, which always lands in
+"unsure". Two methods contradicting each other *is* uncertainty, and an
+average would hide it behind a confident-looking number. The thresholds
+then make "AI" the hardest label to get. An average of 0.85 needs both
+signals at 0.70 or above, so neither signal can make the call alone.
 
-**The numbers:**
+**The numbers** (all in `config.py`):
+
+| Setting | Value | Why |
+|---|---|---|
+| `WEIGHT_MODEL_SIGNAL` / `WEIGHT_STYLE_SIGNAL` | 0.5 / 0.5 | Neither is more trustworthy. The model signal is biased against plain writers, and the style signal is cheap to game |
+| `SPLIT_GAP` | 0.40 | A gap this size means the signals point opposite ways. On the calibration set only the deliberately split case reaches it. The largest ordinary gap is 0.23 |
+| `HUMAN_THRESHOLD` | 0.42 | Provisional, finalised in Milestone 5 |
+| `AI_THRESHOLD` | 0.85 | Provisional. Set above the plain human writer (0.807) rather than at the starter's 0.65, per the DESIGN.md §3 trace |
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:**
+**Calibration** (`python calibrate.py --raw`). Spread, MATTR and punct are the
+raw style measures. MATTR is shown but not scored.
 
+| Input | model | style | combined | label | spread | MATTR | punct /100w |
+|---|---|---|---|---|---|---|---|
+| clearly AI | 0.850 | 1.000 | 0.925 | ai | 0.20 | 0.90 | 0.00 |
+| lightly-edited AI | 0.648 | 0.686 | 0.667 | unsure | 0.35 | 0.89 | 1.25 |
+| AI, varied rhythm | 0.597 | 0.156 | **0.500** (split) | unsure | 1.10 | 0.92 | 2.94 |
+| clearly human (Twain) | 0.463 | 0.333 | 0.398 | human | 0.72 | 0.71 | 2.78 |
+| formal human (Mill) | 0.709 | 0.510 | 0.610 | unsure | 0.54 | 0.77 | 0.00 |
+| plain human | 0.847 | 0.767 | 0.807 | unsure | 0.18 | 0.84 | 0.00 |
+| ornate human | 0.254 | 0.484 | 0.369 | human | 1.16 | 0.84 | 1.37 |
+
+Twain and Mill are real public-domain text. "Plain human" and "ornate human"
+are stand-ins until I swap in my own writing.
+
+**Where they agree and where they split:**
+- **Agree on AI:** the clearly-AI text.
+- **Agree on human:** Twain.
+- **Mild splits:** Mill and the ornate paragraph, under 0.25 apart.
+- **Both wrong together:** the plain human writer, both signals over 0.75.
+  Nothing in the rule can fix shared evidence. Only the AI threshold keeps
+  this person out of the AI label, and the margin is thin (0.807 against
+  0.85).
+
+**A case where my two signals split, and what my rule does with it:** AI
+prose that varies its rhythm on purpose, with a one-word question, a fragment
+and a dash. The model signal still reads it as AI-leaning (0.597). The style
+signal reads it as strongly human (0.156), because varied rhythm is exactly
+what style measures and it can't read meaning. A plain average gives 0.376,
+which is under the human threshold. AI text would get a "high-confidence
+human" label just by varying its rhythm. The gap is 0.44 ≥ `SPLIT_GAP`, so the
+rule returns 0.5 and the reader gets "unsure" instead.
+
+**Surprises I followed up by printing the signals separately:**
+- **Mill is not read as human by signal one** (0.709), despite the starter's
+  note that formal prose scores human. Long sentences of common words are
+  predictable even when they're formal.
+- **Type–token ratio points the wrong way** on this set. The AI texts have
+  the *most* varied vocabulary. That's why it's computed but kept out of the
+  score.
+- **The lightly-edited AI drops to "unsure"** (0.667), not "AI". A minute of
+  editing is enough to get out of the AI label. That's the price of an AI
+  threshold high enough to protect the plain writer, and I'm choosing to pay
+  it.
 
 
 ---

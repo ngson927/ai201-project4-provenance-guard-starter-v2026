@@ -30,6 +30,8 @@ from flask import Flask, jsonify, request
 
 import audit
 import config
+import scoring
+import stylometry
 
 app = Flask(__name__)
 
@@ -238,12 +240,12 @@ def submit():
         return _refuse(creator_id, "detector_unavailable",
                        "The checker isn't available right now. Try again shortly.", status=503)
 
-    # Milestone 3: one signal only. style_score, confidence and label arrive in
-    # Milestones 4 and 5 — until then they're placeholders, not decisions.
-    style_score = None
-    confidence = None
-    guess = "unsure"
-    label = "PLACEHOLDER — labels are written in Milestone 5."
+    style_score = stylometry.style_signal(text)
+    confidence = scoring.combine_signals(model_score, style_score)
+
+    # Milestone 4: the guess comes from the real score; the label text is
+    # still a placeholder until Milestone 5.
+    guess, label = scoring.score_to_label(confidence)
 
     audit.log_decision(
         content_id=content_id,

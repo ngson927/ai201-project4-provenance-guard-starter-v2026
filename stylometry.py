@@ -33,6 +33,13 @@ anything together:
 import re
 import statistics
 
+# Window for the moving-average type-token ratio, in words.
+TTR_WINDOW = 50
+
+# The marks punctuation_density counts. An opening bracket counts once per
+# pair; a hyphen counts only when spaced, as a dash.
+EXPRESSIVE_PUNCTUATION = re.compile(r"[;:—–(!?]|\s-\s")
+
 
 def sentences(text: str) -> list[str]:
     """Split into sentences. Rough and good enough — given to you."""
@@ -63,9 +70,17 @@ def sentence_length_spread(text: str) -> float:
     Watch the edge case: a one-sentence submission has no spread at all, and
     `stdev` raises on fewer than two values. Decide what that should return
     before the attack set decides for you.
+
+    Mine: the coefficient of variation of words-per-sentence (stdev / mean).
+    0.0 means every sentence is the same length; human prose usually lands
+    around 0.4–0.8. **Higher means more human.** Fewer than two sentences
+    returns 0.0, and `style_signal` treats that as "no evidence", not as AI.
     """
-    # TODO: replace this
-    return 0.0
+    lengths = [len(words(s)) for s in sentences(text)]
+    lengths = [n for n in lengths if n]
+    if len(lengths) < 2:
+        return 0.0
+    return statistics.stdev(lengths) / statistics.mean(lengths)
 
 
 def type_token_ratio(text: str) -> float:
@@ -79,9 +94,22 @@ def type_token_ratio(text: str) -> float:
     longer, because common words repeat. Two texts of different lengths aren't
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
+
+    Mine is the moving-average version: the plain ratio inside every window
+    of TTR_WINDOW words, averaged. That keeps a 300-word text and a 60-word
+    one comparable. Shorter than one window falls back to the plain ratio.
+    **Higher means more human.**
     """
-    # TODO: replace this
-    return 0.0
+    toks = words(text)
+    if not toks:
+        return 0.0
+    if len(toks) <= TTR_WINDOW:
+        return len(set(toks)) / len(toks)
+    ratios = [
+        len(set(toks[i:i + TTR_WINDOW])) / TTR_WINDOW
+        for i in range(len(toks) - TTR_WINDOW + 1)
+    ]
+    return statistics.mean(ratios)
 
 
 def punctuation_density(text: str) -> float:
@@ -93,9 +121,17 @@ def punctuation_density(text: str) -> float:
         semicolons, dashes — is a real choice. Semicolons and em dashes are
         more interesting than full stops, because they vary more between
         writers.
+
+    Mine counts only the expressive marks — ; : — – ( ! ? and a spaced
+    hyphen used as a dash — per 100 words. Full stops and commas are left
+    out: every writer uses them, so they say little. **Higher means more
+    human.**
     """
-    # TODO: replace this
-    return 0.0
+    n = len(words(text))
+    if not n:
+        return 0.0
+    marks = len(EXPRESSIVE_PUNCTUATION.findall(text))
+    return 100.0 * marks / n
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -121,9 +157,53 @@ def style_signal(text: str) -> float:
     clearly human, plain conventional human writing, lightly-edited AI — before
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
+
+    Mine averages three AI-ness readings, each 0–1, each pointing the same way:
+
+      spread     low sentence_length_spread → AI.     CV 0.20 → 1.0, 0.70 → 0.0
+      punct      few expressive marks → AI.            0 per 100 words → 1.0,
+                                                       2.5 or more → 0.0
+      mid-length mean sentence length in the even,     14–22 words → 1.0, falling
+                 "most likely" band → AI.              to 0.0 at 9 and at 32
+
+    type_token_ratio is computed but NOT used. On the calibration set it
+    pointed the opposite way from the hypothesis (the AI paragraph had the
+    *highest* ratio, 0.90; Twain the lowest, 0.71) across a narrow range. I'm
+    not putting a direction learned from six texts into the score.
+
+    The mid-length reading is there on purpose: signal one's blind spot is
+    short, plain sentences, and this measure does NOT reward them — so the two
+    signals stop sharing a blind spot for the plain writer from DESIGN.md §3.
+    Its own blind spot: AI told to write short or very long sentences.
+
+    Fewer than two sentences gives no spread to read, so that reading is
+    dropped rather than counted as AI.
     """
-    # TODO: replace this
-    return 0.5
+    readings = []
+    if len(sentences(text)) >= 2:
+        readings.append(_falling(sentence_length_spread(text), 0.20, 0.70))
+    readings.append(_falling(punctuation_density(text), 0.0, 2.5))
+    readings.append(_mid_length(text))
+    return round(statistics.mean(readings), 4)
+
+
+def _falling(value: float, ai_at: float, human_at: float) -> float:
+    """1.0 at or below `ai_at`, 0.0 at or above `human_at`, linear between."""
+    return min(max((human_at - value) / (human_at - ai_at), 0.0), 1.0)
+
+
+def _mid_length(text: str) -> float:
+    """How close the mean sentence length sits to the 14–22 word band."""
+    lengths = [len(words(s)) for s in sentences(text)]
+    lengths = [n for n in lengths if n]
+    if not lengths:
+        return 0.0
+    mean = statistics.mean(lengths)
+    if mean < 14:
+        return max((mean - 9) / 5, 0.0)
+    if mean > 22:
+        return max((32 - mean) / 10, 0.0)
+    return 1.0
 
 
 if __name__ == "__main__":
@@ -139,4 +219,3 @@ if __name__ == "__main__":
     print(f"type_token_ratio         {type_token_ratio(text)}")
     print(f"punctuation_density      {punctuation_density(text)}")
     print(f"style_signal             {style_signal(text)}   (higher = more likely AI)")
-    print("\nAll zeros? These are stubs — Milestone 4 is where you build them.")

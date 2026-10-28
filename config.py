@@ -50,12 +50,16 @@ DETECTOR_MAX_TOKENS = 400
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.
 #
-# ⚠️ These are placeholders. Milestone 4 asks you to write your combining rule
-# down BEFORE you code it, and to put the numbers in your README. Whatever you
-# decide, it goes here.
+# Equal weights: neither signal is more trustworthy. The model signal is
+# biased against plain writers; the style signal is cheap to game.
 
 WEIGHT_MODEL_SIGNAL = 0.5
 WEIGHT_STYLE_SIGNAL = 0.5
+
+# When the two signals are this far apart they contradict each other, and the
+# combined score is 0.5 (unsure) instead of their average. On the calibration
+# set the largest ordinary gap is 0.23; the deliberately split case is 0.44.
+SPLIT_GAP = 0.40
 
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
@@ -71,8 +75,11 @@ WEIGHT_STYLE_SIGNAL = 0.5
 # getting through. There is no setting that avoids the trade — only settings
 # that decide who pays for it.
 
-HUMAN_THRESHOLD = 0.35
-AI_THRESHOLD = 0.65
+# Provisional (Milestone 4) — finalised in Milestone 5. AI_THRESHOLD sits
+# above the plain human writer from DESIGN.md §3 (0.807 on the calibration
+# set), so an average of 0.85 needs BOTH signals at 0.70 or more.
+HUMAN_THRESHOLD = 0.42
+AI_THRESHOLD = 0.85
 
 # ⚠️ One thing that catches people out in Milestone 5. A weighted average can
 # only land between its two inputs — so while `style_signal` is still the stub
