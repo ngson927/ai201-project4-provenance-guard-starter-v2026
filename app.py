@@ -199,17 +199,15 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
-    payload = request.get_json(silent=True) or {}
-
-    # TODO: delete this and build the route.
+    # Milestone 3, step 1: hardcoded, to prove the route answers.
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /submit isn't built yet — see the TODO in app.py.",
-        "you_sent": {
-            "text_length": len(payload.get("text", "")),
-            "creator_id": payload.get("creator_id"),
-        },
-    }), 501
+        "content_id": "hardcoded",
+        "guess": "unsure",
+        "confidence": 0.5,
+        "label": "placeholder",
+        "model_score": 0.5,
+        "style_score": None,
+    })
 
 
 @app.post("/appeal")
