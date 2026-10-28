@@ -39,6 +39,28 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
+Full design, including the false-positive trace and both endpoint contracts:
+[DESIGN.md](DESIGN.md).
+
+1. **`POST /submit` receives the request** (`app.py::submit`): JSON
+   `{"text", "creator_id"}` arrives as raw input we can't trust yet.
+2. **Validation and identity:** bad, empty, too-short (< 20 words) or too-long
+   (> 10,000 chars) input is refused with a 400 and logged as a rejection.
+   Valid input gets a new `content_id`.
+3. **Signal one, `detector.model_signal`:** gpt2 measures how predictable the
+   text is. Adds `model_score` (0–1, higher = more AI-like).
+4. **Signal two, `stylometry.style_signal`:** sentence-length spread,
+   vocabulary variety and punctuation variety. Adds `style_score` (0–1,
+   higher = more AI-like).
+5. **The combining rule, `scoring.combine_signals`:** two scores become one.
+   Adds `confidence`, the combined score.
+6. **The label mapping, `scoring.score_to_label`:** thresholds turn the number
+   into a `guess` (human / unsure / ai) and the `label` sentence a person
+   reads.
+7. **Audit log, then response:** `audit.log_decision` appends all nine fields
+   with `status: "decided"`. The reader gets the label and the `content_id`
+   they'd need for `POST /appeal`, which moves the item to `under_review`.
+
 
 
 ---
@@ -53,19 +75,49 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** How predictable the text is to a local language model
+(gpt2), as perplexity. Low perplexity maps to a high score, so higher means
+more AI-like.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** A model writes by
+picking likely next words, so its output is easy for a similar model to
+predict. People make choices a model wouldn't rank first (odd words, specific
+details, abrupt turns), and that raises perplexity.
 
-**What it can't see:**
+**What it can't see:** Authorship. Predictability really rewards common words
+in short, plain sentences. A second-language writer, a younger writer, or
+anyone writing plainly on purpose scores as machine-like as a machine. In the
+other direction, AI text with rare words added, paraphrased, or sampled hot
+reads as human, and so does ornate human prose. It also ignores everything
+after the first 400 tokens, and gpt2 is far older than the models writing
+today's AI text.
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures:** The shape of the text with no understanding of it:
+- sentence-length spread (coefficient of variation);
+- vocabulary variety (windowed type–token ratio);
+- variety of expressive punctuation (`; : — ( ) ! ?`).
 
-**Why that might differ between human and AI writing:**
+Each measure is flipped so that uniform text scores high, put on 0–1, then
+averaged. Higher means more AI-like.
 
-**What it can't see:**
+**Why that might differ between human and AI writing:** "Most likely next
+word" produces even prose on average: mid-length sentences, a narrow band of
+vocabulary, tidy punctuation. Human writing is lumpier.
+
+**What it can't see:** Meaning. Anything that changes shape without changing
+substance moves it:
+- typos (which raise vocabulary variety);
+- chopped or merged sentences;
+- sprinkled dashes;
+- a pasted quotation;
+- a prompt to "vary sentence length".
+
+It can't tell an even-handed human from a machine either. Technical, legal
+and plain-style writing all look uniform. On short texts it's mostly noise.
+Both blind spots point at the same person, the plain, careful writer, so the
+two signals aren't independent witnesses for them.
 
 ### The combining rule
 
