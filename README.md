@@ -360,6 +360,29 @@ with `status: "under_review"`.
 
 ---
 
+## Stretch: `GET /content/<id>`
+
+**Declared before building.** `GET /content/<content_id>` returns one item's
+*current* state, so a writer who appealed can check where it stands without
+reading the whole audit log.
+
+**Plan:**
+- **Lookup:** read every log entry for that id with `audit.entries_for`.
+- **Unknown id:** if there's no `decided` entry, return 404
+  `unknown_content_id`, the same error as `/appeal`.
+- **Otherwise, return:**
+  - `content_id`, `creator_id`, `guess`, `label`, `confidence`,
+    `model_score`, `style_score` from the original decision;
+  - `status` from the **latest** entry (`decided`, or `under_review` after an
+    appeal);
+  - `submitted_at`;
+  - `appealed_at`, which is `null` if there's been no appeal.
+- **Not returned:** the appeal's `reasoning`. That's for the reviewer, not
+  for anyone who happens to have the id.
+- **No writes:** it never changes the log.
+
+---
+
 ## How I Used AI
 
 I used Claude Code (Claude Opus 5.5) as a pair through all six milestones. I
