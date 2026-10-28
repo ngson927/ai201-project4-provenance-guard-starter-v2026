@@ -150,6 +150,12 @@ def health():
 
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
+# Input limits — the contract in DESIGN.md §4. Below 20 words there's too
+# little to judge, so we refuse rather than guess.
+MIN_TEXT_WORDS = 20
+MAX_TEXT_CHARS = 10_000
+MAX_CREATOR_ID_CHARS = 100
+
 @app.post("/submit")
 # @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
@@ -199,15 +205,72 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
-    # Milestone 3, step 1: hardcoded, to prove the route answers.
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _refuse("unknown", "invalid_json", "Send a JSON object with 'text' and 'creator_id'.")
+
+    raw_creator = payload.get("creator_id")
+    creator_id = raw_creator.strip() if isinstance(raw_creator, str) else ""
+    log_creator = creator_id or "unknown"
+
+    text = payload.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return _refuse(log_creator, "missing_text", "There's no text to check. Send it in the 'text' field.")
+    text = text.strip()
+    if len(text) > MAX_TEXT_CHARS:
+        return _refuse(log_creator, "text_too_long",
+                       f"That's too long to check. Send at most {MAX_TEXT_CHARS:,} characters.")
+    if len(text.split()) < MIN_TEXT_WORDS:
+        return _refuse(log_creator, "text_too_short",
+                       f"That's too short to judge fairly. Send at least {MIN_TEXT_WORDS} words.")
+
+    if not creator_id or len(creator_id) > MAX_CREATOR_ID_CHARS:
+        return _refuse(log_creator, "missing_creator_id",
+                       f"Send a 'creator_id' of 1 to {MAX_CREATOR_ID_CHARS} characters.")
+
+    content_id = str(uuid.uuid4())
+
+    import detector
+
+    try:
+        model_score = detector.model_signal(text)
+    except detector.DetectorUnavailable:
+        return _refuse(creator_id, "detector_unavailable",
+                       "The checker isn't available right now. Try again shortly.", status=503)
+
+    # Milestone 3: one signal only. style_score, confidence and label arrive in
+    # Milestones 4 and 5 — until then they're placeholders, not decisions.
+    style_score = None
+    confidence = None
+    guess = "unsure"
+    label = "PLACEHOLDER — labels are written in Milestone 5."
+
+    audit.log_decision(
+        content_id=content_id,
+        creator_id=creator_id,
+        guess=guess,
+        model_score=model_score,
+        style_score=style_score,
+        combined_score=confidence,
+        label=label,
+    )
+
     return jsonify({
-        "content_id": "hardcoded",
-        "guess": "unsure",
-        "confidence": 0.5,
-        "label": "placeholder",
-        "model_score": 0.5,
-        "style_score": None,
+        "content_id": content_id,
+        "creator_id": creator_id,
+        "guess": guess,
+        "confidence": confidence,
+        "label": label,
+        "model_score": model_score,
+        "style_score": style_score,
+        "status": "decided",
     })
+
+
+def _refuse(creator_id, error, message, status=400):
+    """Turn a request away, and leave a trace of it in the log."""
+    audit.log_rejection(creator_id=creator_id, reason=error)
+    return jsonify({"error": error, "message": message}), status
 
 
 @app.post("/appeal")

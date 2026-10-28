@@ -173,15 +173,56 @@ two signals aren't independent witnesses for them.
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
+_Milestone 3 run: one signal only, so `style_score`, `confidence` and
+`label` are still placeholders. This gets replaced with a full run in
+Milestone 5._
+
 ```bash
 $ curl -X POST http://127.0.0.1:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+  -d '{"text": "Artificial intelligence has transformed numerous industries in recent years. It offers significant benefits in terms of efficiency, accuracy, and scalability. However, it is important to consider the ethical implications of these technologies.", "creator_id": "student-42"}'
 ```
 
 ```json
-
+{
+  "confidence": null,
+  "content_id": "d8f13232-a763-40b4-9b95-b6b245d0c70b",
+  "creator_id": "student-42",
+  "guess": "unsure",
+  "label": "PLACEHOLDER \u2014 labels are written in Milestone 5.",
+  "model_score": 0.8848,
+  "status": "decided",
+  "style_score": null
+}
 ```
+
+A refused one, which is logged as well:
+
+```bash
+$ curl -X POST http://127.0.0.1:5000/submit \
+  -H "Content-Type: application/json" \
+  -d '{"text": "", "creator_id": "student-42"}'
+```
+
+```json
+{
+  "error": "missing_text",
+  "message": "There's no text to check. Send it in the 'text' field."
+}
+```
+(HTTP 400)
+
+**Signal one on its own, before wiring it in** (`python detector.py "..."`):
+
+| Text | Perplexity | `model_signal` |
+|---|---|---|
+| Generic AI paragraph about AI ethics | 12.2 | 0.8896 |
+| Human, specific and ornate (grandmother's button tin) | 88.2 | 0.2543 |
+| Human, plain (moving to a new city, short sentences) | 15.1 | **0.8513** |
+
+The plain human paragraph scores almost as AI-like as the AI text. This is
+the false positive from DESIGN.md §3, and it's worse than the 0.79 I
+predicted.
 
 **An appeal**
 
@@ -192,7 +233,7 @@ $ curl -X POST http://127.0.0.1:5000/appeal \
 ```
 
 ```json
-
+(POST /appeal is built in Milestone 5)
 ```
 
 **What the log shows afterwards**
@@ -202,7 +243,40 @@ $ curl "http://127.0.0.1:5000/log?limit=3"
 ```
 
 ```json
-
+{
+  "count": 3,
+  "entries": [
+    {
+      "creator_id": "unknown",
+      "event": "rejected",
+      "reason": "missing_creator_id",
+      "status": "rejected",
+      "timestamp": "2026-10-28T23:35:56+00:00"
+    },
+    {
+      "combined_score": null,
+      "content_id": "4bc3c398-cb0c-4aee-973b-44b9189fdeba",
+      "creator_id": "student-7",
+      "guess": "unsure",
+      "label": "PLACEHOLDER \u2014 labels are written in Milestone 5.",
+      "model_score": 0.28,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-10-28T23:35:56+00:00"
+    },
+    {
+      "combined_score": null,
+      "content_id": "1233983a-1de5-4b5e-b743-325dbb550d94",
+      "creator_id": "student-9",
+      "guess": "unsure",
+      "label": "PLACEHOLDER \u2014 labels are written in Milestone 5.",
+      "model_score": 0.8508,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-10-28T23:35:56+00:00"
+    }
+  ]
+}
 ```
 
 ---
