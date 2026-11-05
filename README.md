@@ -1245,6 +1245,41 @@ The honest summary: **it turned the cheapest, most copyable attack
 (paste a fake SYSTEM line) into one that needs an attacker to think, and it
 didn't make the detector any better at telling AI from human.**
 
+### Stretch: a second measured improvement
+
+**Declared before building.** The second change targets EV02 and EV07, the
+two attacks still marked BROKE after the first improvement. Both drive signal
+two to 0.00 by moving full stops (Diagnoses → EV02 and EV07).
+
+**Plan: one change, in `stylometry.py`.** The two readings that depend on
+sentences, length spread and mean sentence length, will read *measured
+sentences* instead of raw ones:
+- **Semicolons count as sentence breaks,** so "; and, moreover," can't fuse
+  the text into one 97-word sentence.
+- **Fragments of three words or fewer are left out,** so "Really." after
+  every sentence can't fake spread or shrink the mean.
+- **Fallback:** if fewer than two measured sentences remain, the readings use
+  the raw sentences as before, so a short plain text is never left with
+  nothing to read.
+
+The punctuation reading, signal one, the combining rule and the thresholds
+don't change.
+
+**How I'll measure it:** the full attack set again (`run_attacks.py --label
+after2`) and the criteria at three trials (`run_eval.py --label after2`,
+`run_appeals.py --label after2`), as a third run log in the same table
+format.
+
+**What I expect:**
+- EV02 and EV07 stop zeroing signal two.
+- The stacked typos + "Really." text moves from `human` to `unsure`.
+
+**What I expect it to cost:** plain human writing uses fragments too
+("Obviously.", "Worth it."). Dropping them raises those writers' mean
+sentence length, which is the false positive this service exists to avoid.
+I'll watch the false-positive family and FP03 in particular, and report it
+either way.
+
 ---
 
 ## What's Still Broken
