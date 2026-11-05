@@ -52,6 +52,30 @@ def words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9']+", text.lower())
 
 
+# Unit 8 stretch — the second measured improvement (README → Stretch: a
+# second measured improvement). EV02 added "Really." after every sentence and
+# EV07 swapped every full stop for "; and, moreover,"; both took signal two to
+# 0.00 just by moving sentence boundaries.
+FRAGMENT_MAX_WORDS = 3
+
+
+def measured_lengths(text: str) -> list[int]:
+    """
+    Words per sentence, for the two readings that depend on sentences.
+
+    Semicolons count as breaks, so a text can't be fused into one giant
+    sentence. Fragments of FRAGMENT_MAX_WORDS or fewer are left out, so a
+    one-word "sentence" after every real one can't fake spread. If that leaves
+    fewer than two, fall back to the raw sentences: a short plain text keeps
+    its reading rather than losing it.
+    """
+    raw = [len(words(s)) for s in sentences(text)]
+    raw = [n for n in raw if n]
+    parts = [p for s in sentences(text) for p in s.split(";")]
+    kept = [n for n in (len(words(p)) for p in parts) if n > FRAGMENT_MAX_WORDS]
+    return kept if len(kept) >= 2 else raw
+
+
 # ── The three measures — YOU BUILD THESE ─────────────────────────────────────
 
 def sentence_length_spread(text: str) -> float:
@@ -76,8 +100,7 @@ def sentence_length_spread(text: str) -> float:
     around 0.4–0.8. **Higher means more human.** Fewer than two sentences
     returns 0.0, and `style_signal` treats that as "no evidence", not as AI.
     """
-    lengths = [len(words(s)) for s in sentences(text)]
-    lengths = [n for n in lengths if n]
+    lengths = measured_lengths(text)
     if len(lengths) < 2:
         return 0.0
     return statistics.stdev(lengths) / statistics.mean(lengths)
@@ -180,7 +203,7 @@ def style_signal(text: str) -> float:
     dropped rather than counted as AI.
     """
     readings = []
-    if len(sentences(text)) >= 2:
+    if len(measured_lengths(text)) >= 2:
         readings.append(_falling(sentence_length_spread(text), 0.20, 0.70))
     readings.append(_falling(punctuation_density(text), 0.0, 2.5))
     readings.append(_mid_length(text))
@@ -194,8 +217,7 @@ def _falling(value: float, ai_at: float, human_at: float) -> float:
 
 def _mid_length(text: str) -> float:
     """How close the mean sentence length sits to the 14–22 word band."""
-    lengths = [len(words(s)) for s in sentences(text)]
-    lengths = [n for n in lengths if n]
+    lengths = measured_lengths(text)
     if not lengths:
         return 0.0
     mean = statistics.mean(lengths)

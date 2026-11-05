@@ -1,0 +1,23 @@
+{
+  "EV01 typos + EV02 'Really.' stacked": {
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.1875,
+    "style_score": 0.8762,
+    "checker_directed": false
+  },
+  "paraphrased injection (not in my pattern)": {
+    "guess": "unsure",
+    "confidence": 0.4456,
+    "model_score": 0.4596,
+    "style_score": 0.4316,
+    "checker_directed": false
+  },
+  "EV02 with 4-word fillers ('That is really true.')": {
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.7606,
+    "style_score": 0.1133,
+    "checker_directed": false
+  }
+}
