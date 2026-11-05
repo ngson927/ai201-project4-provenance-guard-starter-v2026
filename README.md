@@ -502,7 +502,7 @@ same nine fields as decisions, with the decision fields `null`.
 Run with `python run_attacks.py --set attack_set --label before` on
 2026-11-04, rate limiting on (5/minute, 60/day). Full output:
 `results/attack_run_2026-11-04_1923_before.md`; the log for the run is
-`results/audit_extract.json`. **56 attacks: 51 held, 5 broke, 0 crashes.**
+`results/audit_extract.json`. **56 attacks: 52 held, 4 broke, 0 crashes.**
 
 **The baseline that changes how to read this.** Most evasion rows are
 edits of one AI paragraph about workplace communication. I sent that
@@ -520,22 +520,40 @@ the attack achieved.
 - **HELD**: everything else, including "unsure" for AI text that was already
   unsure unedited, and clean 400/429 refusals.
 
+**Judgement calls**, the ones where a different grader could mark it the
+other way:
+1. *AI text that stays "unsure" when the unedited text was already unsure
+   counts as HELD.* The attack achieved nothing. The real failure is that the
+   service doesn't catch that text at all, and that belongs under What's Still
+   Broken, not credited to the attack.
+2. *EV02 and EV07 count as BROKE although their label held.* Each drove
+   signal two to 0.00, and that's not harmless. I stacked EV01's typos (which
+   drop signal one to 0.16) on top of EV02's "Really." edit and the paragraph
+   came back **human, 0.26** (`m2_combo_ev01_ev02` in the log). Two cheap
+   edits, one per signal, launder the text completely.
+3. *EV05 counts as HELD although AI text came back human.* Read it: "which
+   everyone hates and everyone needs", "agreed in a corridor in March". Only
+   the three-tip outline survives from the AI. Every sentence is a person's.
+   "Most likely written by a person" is true of these words. A detector that
+   flagged EV05 would also flag every writer who starts from an outline, and
+   that's the false positive this service is built to avoid.
+
 | Family | Attacks | Held | Broke |
 |---|---|---|---|
-| `evasion` | 10 | 7 | 3 |
+| `evasion` | 10 | 8 | 2 |
 | `false_positive` | 8 | 8 | 0 |
 | `prompt_injection` | 6 | 4 | 2 |
 | `malformed` | 20 | 20 | 0 |
 | `flood_same_creator` | 12 | 12 | 0 |
-| **Total** | **56** | **51** | **5** |
+| **Total** | **56** | **52** | **4** |
 
 | ID | Family | Targeting | Status | Guess | Score | Verdict | What happened |
 |---|---|---|---|---|---|---|---|
 | EV01 | evasion | signal two: typos raise word variety | 200 | unsure | 0.500 | **HELD** | unsure, same as the unedited text. Signal two went *up* (0.88); the typos instead knocked signal one to 0.16 and the split rule caught it |
-| EV02 | evasion | signal two: broken-up sentences raise length spread | 200 | unsure | 0.500 | **BROKE** | reached its target: signal two fell to **0.00**. Outcome stayed unsure only because the split rule forced 0.5 |
+| EV02 | evasion | signal two: broken-up sentences raise length spread | 200 | unsure | 0.500 | **BROKE** | reached its target: signal two fell to **0.00**. Outcome stayed unsure only because the split rule forced 0.5. Stacked with EV01's typos it comes back **human, 0.26** |
 | EV03 | evasion | signal two: a pasted quotation changes the shape | 200 | unsure | 0.481 | **HELD** | unsure 0.48; signal two fell to 0.30 but signal one held at 0.67 |
 | EV04 | evasion | signal one: unusual words raise perplexity | 200 | unsure | 0.749 | **HELD** | unsure 0.75. Rare words made the text look *more* AI, not less |
-| EV05 | evasion | both signals: heavy human editing pass | 200 | human | 0.345 | **BROKE** | AI text labelled **human** (0.34): both signals under 0.37 |
+| EV05 | evasion | both signals: heavy human editing pass | 200 | human | 0.345 | **HELD** | labelled human (0.34), and I think rightly: every sentence was rewritten in a person's voice (see judgement call 3) |
 | EV06 | evasion | signal two: one very long sentence and one very short | 200 | unsure | 0.620 | **HELD** | unsure 0.62 |
 | EV07 | evasion | signal two: padding with punctuation | 200 | unsure | 0.500 | **BROKE** | reached its target: signal two fell to **0.00**; split rule forced 0.5 |
 | EV08 | evasion | signal one: text below the token window | 400 | — | — | **HELD** | 400 `text_too_short`: refused instead of guessing on 10 words |
@@ -581,7 +599,8 @@ the attack achieved.
 **Ten audit log entries from the run**
 
 Lines straight from `logs/audit.jsonl` (written by `audit.py::_append`). In
-order: the three AI texts labelled `human` (PI02, PI01, EV05); the two
+order: the AI texts labelled `human` (PI02 and PI01 broke; EV05 I judged
+held, see call 3); the two
 where signal two fell to 0.00 (EV02, EV07); the unedited baseline for comparison; the human text closest to an
 accusation; the only `ai` label; the log-injection attempt; and two 429
 rejections, one counted by address (RQ10, no usable creator_id) and one by
