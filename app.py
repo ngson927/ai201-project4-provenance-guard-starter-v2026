@@ -24,6 +24,7 @@ Routes:
     GET  /health      is the service up, and is the model loaded
 """
 
+import re
 import uuid
 
 from flask import Flask, jsonify, request
@@ -159,6 +160,24 @@ MAX_TEXT_CHARS = 10_000
 MAX_CREATOR_ID_CHARS = 100
 MAX_REASONING_CHARS = 2_000
 
+# Unit 8, Milestone 5 — the one change. Text that talks to the checker
+# ("SYSTEM: …", "ignore all previous instructions", `guess=human`) isn't
+# writing, and its odd tokens and clipped sentences drag BOTH signals down at
+# once, so the split rule never fires and the average lands on "human" (PI01,
+# PI02). Neither signal can tell, so the route refuses to *certify* such text
+# as human: the label is capped at "unsure". It never pushes a score toward AI,
+# so it can't accuse anyone. It matches phrasing, not intent — a paraphrase
+# gets past it (README → The Improvement).
+CHECKER_DIRECTED = re.compile(
+    r"^\s*(system|assistant|developer)\s*:"                                     # role prefix
+    r"|\b(ignore|disregard)\b[^.\n]{0,40}\b(instructions?|analysis|check|checks|scoring)\b"
+    r"|\b(guess|confidence|combined_score|model_score|style_score)\s*="          # key=value
+    r"|\"(guess|label|confidence|combined_score)\"\s*:"                         # injected JSON
+    r"|\breturn\s+(a\s+|an\s+)?(human|ai)\b"
+    r"|\bnote to the [a-z ]{0,20}(system|checker|detector|classifier)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+
 @app.post("/submit")
 @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
@@ -246,6 +265,10 @@ def submit():
 
     guess, label = scoring.score_to_label(confidence)
 
+    checker_directed = bool(CHECKER_DIRECTED.search(text))
+    if checker_directed and guess == "human":
+        guess, label = "unsure", scoring.LABEL_UNSURE
+
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
@@ -254,6 +277,7 @@ def submit():
         style_score=style_score,
         combined_score=confidence,
         label=label,
+        checker_directed=checker_directed,
     )
 
     return jsonify({
@@ -264,6 +288,7 @@ def submit():
         "label": label,
         "model_score": model_score,
         "style_score": style_score,
+        "checker_directed": checker_directed,
         "status": "decided",
     })
 

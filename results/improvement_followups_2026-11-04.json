@@ -1,0 +1,30 @@
+{
+  "PI01 injection + full AI paragraph": {
+    "guess": "unsure",
+    "confidence": 0.4164,
+    "model_score": 0.5038,
+    "style_score": 0.329,
+    "checker_directed": true
+  },
+  "PI02 injection + full AI paragraph": {
+    "guess": "unsure",
+    "confidence": 0.3539,
+    "model_score": 0.3746,
+    "style_score": 0.3332,
+    "checker_directed": true
+  },
+  "paraphrased injection (not in my pattern)": {
+    "guess": "human",
+    "confidence": 0.3296,
+    "model_score": 0.4596,
+    "style_score": 0.1995,
+    "checker_directed": false
+  },
+  "EV01 typos + EV02 'Really.' stacked": {
+    "guess": "human",
+    "confidence": 0.2604,
+    "model_score": 0.1875,
+    "style_score": 0.3333,
+    "checker_directed": false
+  }
+}
