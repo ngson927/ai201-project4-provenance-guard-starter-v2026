@@ -1,0 +1,71 @@
+{
+  "responses": [
+    {
+      "sent": "{\"text\": \"\", \"creator_id\": \"eval_bad_empty\"}",
+      "status": 400,
+      "response": {
+        "error": "missing_text",
+        "message": "There's no text to check. Send it in the 'text' field."
+      }
+    },
+    {
+      "sent": "{\"creator_id\": \"eval_bad_missing\"}",
+      "status": 400,
+      "response": {
+        "error": "missing_text",
+        "message": "There's no text to check. Send it in the 'text' field."
+      }
+    },
+    {
+      "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}",
+      "status": 400,
+      "response": {
+        "error": "missing_text",
+        "message": "There's no text to check. Send it in the 'text' field."
+      }
+    },
+    {
+      "sent": "{\"text\": \"word word word word word word word word word word word word ",
+      "status": 400,
+      "response": {
+        "error": "text_too_long",
+        "message": "That's too long to check. Send at most 10,000 characters."
+      }
+    },
+    {
+      "sent": "{\"text\": \"Artificial intelligence has transformed numerous industries ",
+      "status": 400,
+      "response": {
+        "error": "missing_creator_id",
+        "message": "Send a 'creator_id' of 1 to 100 characters."
+      }
+    }
+  ],
+  "log_last_5": [
+    {
+      "creator_id": "eval_bad_empty",
+      "status": "rejected",
+      "reason": "missing_text"
+    },
+    {
+      "creator_id": "eval_bad_missing",
+      "status": "rejected",
+      "reason": "missing_text"
+    },
+    {
+      "creator_id": "eval_bad_null",
+      "status": "rejected",
+      "reason": "missing_text"
+    },
+    {
+      "creator_id": "eval_bad_huge",
+      "status": "rejected",
+      "reason": "text_too_long"
+    },
+    {
+      "creator_id": "unknown",
+      "status": "rejected",
+      "reason": "missing_creator_id"
+    }
+  ]
+}

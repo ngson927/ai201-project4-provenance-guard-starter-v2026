@@ -641,40 +641,389 @@ learns that in one try.
 
 ## Run Log and Verdicts
 
-<!-- Your five criteria across three trials. `run_eval.py --label before`. -->
+Criteria 2–4 were run with `run_eval.py --label before` (three trials, nothing
+changed in between) → `results/run_2026-11-04_1930_before.md`. Criterion 5
+needs the content_id a submission returns, which `run_eval.py` can't do, so
+`run_appeals.py --label before` runs the steps from criteria.md §5 three times
+→ `results/appeals_2026-11-04_1929_before.md`.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. My own writing not called AI | ≤ 1 of 10 `ai`, 0 of the 3 plain ones | — | — | — | **NOT RUN** |
+| 2. All three labels reachable | human, unsure, ai each ≥ 1 | 3/3 | 3/3 | 3/3 | **MET** |
+| 3. Clearly-AI and clearly-human far apart | mean gap ≥ 0.30 and no overlap | gap 0.487, no overlap | gap 0.487, no overlap | gap 0.487, no overlap | **MET** |
+| 4. Bad input → 400, never 500 | 5 of 5 are 400 with `error`; 5 `rejected` in log | 5/5 | 5/5 | 5/5 | **MET** |
+| 5. Every appeal changes status and is recorded | 5 of 5 real → `under_review` and logged; fake id → 404 | 5/5, 404 | 5/5, 404 | 5/5, 404 | **MET** |
 
-**Real output from one trial**, pasted as text, naming the file and function
-that produced it:
+**How I decided each verdict:**
+1. **Not run.** It needs ten pieces of my own writing in `scenarios.py`, and
+   those are still placeholders, so `run_eval.py` refuses to run it. I'm not
+   marking it MET or MISSED without data, and I won't fill it with text I
+   didn't write. It gets run, three trials, once the pieces are in.
+2. **MET.** Every trial returned `ai` (all 3 clearly-AI), `human` (Twain,
+   Melville) and `unsure` (Thoreau and all 3 borderline). All three labels
+   appeared in all three trials.
+3. **MET.** AI mean 0.942 (0.925, 0.927, 0.975), human mean 0.455 (0.398,
+   0.272, 0.696). The gap is 0.487 against a target of 0.30. Highest human
+   (Thoreau, 0.696) is below lowest AI (0.925). Same in all three trials.
+4. **MET.** All 5 bodies got a 400 in every trial, and none got a 500. The
+   bodies carry an `error` code (`missing_text` ×3, `text_too_long`,
+   `missing_creator_id`) and the last 5 log entries are the 5 rejections.
+   `run_eval.py` records only the status, so I sent the same 5 bodies once
+   more to capture the bodies (`results/criterion4_bodies_2026-11-04.json`).
+5. **MET.** In each trial, 5 of 5 appeals returned 200 `under_review`, and the
+   log shows `decided` then `appeal` for every id. `not-a-real-id` returned 404
+   all three times.
 
+**Stability:** all three trials came out identical to four decimal places.
+GPT-2 runs in eval mode with no sampling, so the same text always gets the
+same perplexity. The pipeline is deterministic, so three trials prove
+stability. They don't give three independent chances to fail.
+
+**Real output from one trial (trial 1).** `label` text is removed to keep this
+short; it's the fixed sentence from Label Variants.
+
+Criteria 2 and 3 — `run_eval.py::main` → `app.py::submit`, scored by
+`scoring.py::combine_signals`:
+
+*clearly AI*
 ```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9247,
+    "model_score": 0.8498,
+    "style_score": 0.9996,
+    "sent": "Artificial intelligence has transformed numerous industries in recent "
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9268,
+    "model_score": 0.8537,
+    "style_score": 1.0,
+    "sent": "Time management is an essential skill for students who want to achieve"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9747,
+    "model_score": 0.9493,
+    "style_score": 1.0,
+    "sent": "Climate change is one of the most pressing challenges facing humanity "
+  }
+]
+```
 
+*clearly human*
+```json
+[
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.3982,
+    "model_score": 0.4632,
+    "style_score": 0.3333,
+    "sent": "You don't know about me without you have read a book by the name of Th"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.2722,
+    "model_score": 0.4026,
+    "style_score": 0.1417,
+    "sent": "Call me Ishmael. Some years ago\u2014never mind how long precisely\u2014having l"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6955,
+    "model_score": 0.7577,
+    "style_score": 0.6333,
+    "sent": "When I wrote the following pages, or rather the bulk of them, I lived "
+  }
+]
+```
+
+*borderline* (criterion 2 only)
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6671,
+    "model_score": 0.6478,
+    "style_score": 0.6863,
+    "sent": "AI has changed a lot of industries in recent years, and the gains in e"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.5968,
+    "style_score": 0.1556,
+    "sent": "Remote work is here to stay. Numerous studies have consistently shown "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6095,
+    "model_score": 0.7092,
+    "style_score": 0.5097,
+    "sent": "The object of this Essay is to assert one very simple principle, as en"
+  }
+]
+```
+
+Criterion 4 — `run_eval.py::main` → `app.py::submit` / `app.py::_refuse`
+(trial 1):
+```json
+[
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "sent": "(empty text)"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "sent": "word word word word word word word word word word word word word word "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "sent": "{\"text\": \"Artificial intelligence has transformed numerous industries in recent years, offering significant benefits in "
+  }
+]
+```
+
+The response bodies and the log afterwards (same 5 bodies, sent once more to
+capture what `run_eval.py` drops):
+```json
+{
+  "responses": [
+    {
+      "sent": "{\"text\": \"\", \"creator_id\": \"eval_bad_empty\"}",
+      "status": 400,
+      "response": {
+        "error": "missing_text",
+        "message": "There's no text to check. Send it in the 'text' field."
+      }
+    },
+    {
+      "sent": "{\"creator_id\": \"eval_bad_missing\"}",
+      "status": 400,
+      "response": {
+        "error": "missing_text",
+        "message": "There's no text to check. Send it in the 'text' field."
+      }
+    },
+    {
+      "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}",
+      "status": 400,
+      "response": {
+        "error": "missing_text",
+        "message": "There's no text to check. Send it in the 'text' field."
+      }
+    },
+    {
+      "sent": "{\"text\": \"word word word word word word word word word word word word ",
+      "status": 400,
+      "response": {
+        "error": "text_too_long",
+        "message": "That's too long to check. Send at most 10,000 characters."
+      }
+    },
+    {
+      "sent": "{\"text\": \"Artificial intelligence has transformed numerous industries ",
+      "status": 400,
+      "response": {
+        "error": "missing_creator_id",
+        "message": "Send a 'creator_id' of 1 to 100 characters."
+      }
+    }
+  ],
+  "log_last_5": [
+    {
+      "creator_id": "eval_bad_empty",
+      "status": "rejected",
+      "reason": "missing_text"
+    },
+    {
+      "creator_id": "eval_bad_missing",
+      "status": "rejected",
+      "reason": "missing_text"
+    },
+    {
+      "creator_id": "eval_bad_null",
+      "status": "rejected",
+      "reason": "missing_text"
+    },
+    {
+      "creator_id": "eval_bad_huge",
+      "status": "rejected",
+      "reason": "text_too_long"
+    },
+    {
+      "creator_id": "unknown",
+      "status": "rejected",
+      "reason": "missing_creator_id"
+    }
+  ]
+}
+```
+
+Criterion 5 — `run_appeals.py::run_trial` → `app.py::appeal` (trial 1; the
+first of the five appeals shown, the other four are identical in shape and in
+the file):
+```json
+{
+  "appeals": [
+    {
+      "submit_status": 200,
+      "content_id": "ac4d5966-bc8e-425c-ae4e-fca5bef2ad91",
+      "appeal_status": 200,
+      "appeal_response": {
+        "content_id": "ac4d5966-bc8e-425c-ae4e-fca5bef2ad91",
+        "message": "Thanks — your appeal has been recorded and a person will review this decision. Until then, the automated label is not a final judgement.",
+        "original_guess": "ai",
+        "status": "under_review"
+      },
+      "log_sequence": [
+        "decided",
+        "appeal"
+      ],
+      "passed": true
+    }
+  ],
+  "fake_id": {
+    "status": 404,
+    "response": {
+      "error": "unknown_content_id",
+      "message": "We couldn't find a submission with that content_id. Check it was copied exactly."
+    }
+  },
+  "real_passed": 5,
+  "fake_404": true
+}
 ```
 
 **Diagnoses**
 
-<!-- For each miss AND each broken attack: the stage and the mechanism.
+No criterion I could run missed. So the diagnoses below are for the four
+broken attacks, plus the gap the baseline exposed. I took each one apart
+measure by measure, re-running the same functions on the attack text, to name
+the mechanism instead of guessing it:
 
-     Your service has five stages: the route, signal one, signal two, the
-     combining rule, and the label mapping.
+| Text | perplexity → signal one | spread | expressive punct. | mean sentence length | signal two | combined |
+|---|---|---|---|---|---|---|
+| AI baseline (unedited) | 33 → 0.62 | 0.16 → **1.00** | 3.5/100 → **0.00** | 12.1 → 0.63 | 0.54 | 0.58 unsure |
+| EV02 (+ "Really." ×8) | 35 → 0.59 | 0.85 → 0.00 | 3.3/100 → 0.00 | 7.0 → 0.00 | **0.00** | 0.50 (split) |
+| EV07 (`; and, moreover,`) | 36 → 0.59 | — (1 sentence) | 7.2/100 → 0.00 | 97 → 0.00 | **0.00** | 0.50 (split) |
+| EV01 (typos) | **125 → 0.16** | 0.16 → 1.00 | 0 → 1.00 | 12.1 → 0.63 | 0.88 | 0.50 (split) |
+| EV01 + EV02 stacked | **113 → 0.19** | 0.90 → 0.00 | 0 → 1.00 | 6.6 → 0.00 | 0.33 | **0.26 human** |
+| PI01 | 49 → 0.46 | 0.66 → 0.07 | 0 → 1.00 | 7.5 → 0.00 | 0.36 | **0.41 human** |
+| PI02 | **105 → 0.20** | 0.65 → 0.10 | 2.2/100 → 0.11 | 7.5 → 0.00 | 0.07 | **0.14 human** |
+| PI02, AI body alone | 22 → 0.75 | 0.80 → 0.00 | 0 → 1.00 | 9.0 → 0.00 | 0.33 | (0.50, split) |
 
-     Not a diagnosis:  "The evasion attacks got through."
-     A diagnosis:      "Four evasion inputs got through. All four had typos
-                        added to AI-generated text. My second signal measures
-                        word variety, and typos raise word variety — so it read
-                        them as more human. My combining rule weights that
-                        signal at 0.6, so it dragged the whole score down."
+**EV02 and EV07: stage = signal two.** Signal two never reads words, only
+where the full stops fall. EV02 adds a one-word sentence after every real one.
+That pushes length spread from 0.16 to 0.85 (reads human) and mean sentence
+length from 12.1 to 7.0, below the 9-word floor of my "mid-length = AI" band.
+Two of three readings hit 0. EV07 does the opposite: it removes every full
+stop, leaving one 97-word sentence. There's no spread to read, and 97 words is
+far past the 32-word ceiling. Both edits also drive the third reading to 0.
+That third reading counts `;` and `—` as human, but this AI text uses both,
+so it reads 0 before the attack even starts (see the baseline). One trivial
+edit sets all of signal two to 0.00. The label survived only because of the
+combining rule: a 0.59-vs-0.00 split is over SPLIT_GAP, so the score was
+forced to 0.5.
 
-     Look for a pattern. Five failures on one signal is one problem, not five. -->
+**PI02: stage = signal one first, then signal two, then the route let it
+through.** The service can't read instructions, so it didn't obey any. The
+mechanism is the *form* of the injected line. `SYSTEM:`, `guess=human`,
+`confidence=0.02` are tokens GPT-2 can't predict, and in a 45-word text that
+line is a third of everything scored. Perplexity jumps from 22 (the AI body
+alone scores 0.75) to 105, so signal one drops to 0.20. The injection is three
+short clipped sentences, which pulls mean sentence length to 7.5, so signal
+two falls to 0.07. Both signals fall *together*, the gap is only 0.13, and the
+split rule never fires. The average (0.14) goes straight to `human`. The route
+has a 20-word minimum but no check on how much of a submission is prose, so
+the attack set's text, cut off mid-word ("Th"), got scored at all.
 
+**PI01: stage = signal two, decided by the label mapping.** Same shape,
+weaker. The three plain imperative sentences ("Ignore all previous
+instructions…") are short, so mean length falls to 7.5 and signal two to 0.36.
+Signal one moves only to 0.46. The average is 0.41, which sits 0.01 under
+HUMAN_THRESHOLD (0.42). The threshold made the final call, but the cause is
+upstream: short sentences read as human.
 
+**The pattern: four breaks, one problem.** Each signal has a cheap knob that
+changes form, not content:
+- **Signal one's knob:** surprising tokens (typos, `key=value` junk) raise
+  perplexity.
+- **Signal two's knob:** where the full stops go (many short sentences, or one
+  enormous one).
+
+My combining rule was built for one signal being fooled. The split rule turns
+a disagreement into "unsure", and that's the only reason EV01, EV02 and EV07
+held. It does nothing when *both* knobs are turned. Then the signals agree,
+the gap stays small, and the average is trusted. Every `human` break (PI01,
+PI02, and the EV01+EV02 stack) is the two signals agreeing on a wrong answer.
+So the fault is in the **combining rule's assumption** that two agreeing
+signals are independent evidence. They aren't, because injected or
+re-punctuated text moves both at once.
+
+**The gap behind most of the "held" evasions: stage = signal two.** The
+unedited AI paragraph scores 0.58, unsure. Signal one says 0.62, which is
+fine. Signal two says 0.54 because its punctuation reading is backwards for
+this text: it treats em dashes and semicolons as human, and modern AI prose is
+full of em dashes. Its 12-word mean sentence length also sits under my 14–22
+"AI" band. My signal two was calibrated on one AI paragraph and Twain. It
+learned "AI = even, mid-length, unpunctuated", which describes older model
+output, not this one.
+
+**I held every criterion I could run, so: were my targets low?** Partly, yes:
+- **Criteria 2 and 3** run on the same nine calibration texts I set my
+  thresholds on (`calibrate.py`). Meeting them shows the thresholds fit the
+  texts they were fitted to. It doesn't show they generalise, and the attack
+  set says they don't: the AI paragraph that every evasion row starts from
+  scores 0.58, nowhere near my clearly-AI 0.93.
+- **Criteria 4 and 5** test plumbing. Plumbing should pass, and I'd keep
+  those targets as they are.
+
+**The criterion I'd tighten is 3.** Score separation should be measured on
+inputs I didn't calibrate on, at minimum including the attack set's unedited
+AI paragraph. Against that it would fail today. I'm not editing criteria.md
+for this: the criterion isn't broken (it measured exactly what it said), and
+loosening or swapping inputs after seeing results isn't a revision. It's
+recorded here and goes into What's Still Broken.
 
 ---
 
