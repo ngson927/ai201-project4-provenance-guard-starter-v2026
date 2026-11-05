@@ -462,25 +462,38 @@ numbers it produced before each commit.
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 5 per minute, 60 per day
 
 **Why those numbers and not others:**
-<!-- Think about two people: a real writer submitting their own work a few
-     times an hour, and a script sending a thousand variations to map your
-     thresholds. Your numbers have to be liveable for the first and hostile to
-     the second. -->
+A real writer checks a draft, revises, and checks again — at most two or three
+submissions in a minute and a handful in an hour. Five a minute leaves room
+for that burst without them ever seeing a 429, and sixty a day is far more
+than one person writes in a day. A script mapping my thresholds needs
+hundreds of near-identical variations: at 60 a day, 1,000 of them take about
+17 days per caller. The daily cap does the real work; the per-minute limit
+only slows a burst. I didn't go lower (e.g. 2/minute) because a writer fixing
+a typo and resubmitting would hit it, and a wrong 429 on an honest writer is
+the same kind of cost as a wrong accusation.
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+**What a caller counts as:** per `creator_id`, falling back to the IP address
+when a request has none. That's fair to a household or classroom sharing one
+address, but `creator_id` is whatever the caller types, so one script that
+invents a new id per request is never limited at all. The limit stops a
+careless flood, not a determined attacker — the honest fix needs real
+accounts, which this service doesn't have.
 
 **The run of status codes when I pushed past it:**
 
 <!-- python run_attacks.py --flood 15 -->
 
 ```
-
+200 200 200 200 200 429 429 429 429 429 429 429 429 429 429
 ```
+
+Each of the ten 429s is in `logs/audit.jsonl` as `"status": "rejected",
+"reason": "rate_limited", "limit": "5 per 1 minute"`, alongside the 400s my
+own route refuses (`missing_text`, `text_too_short`, …). Rejections carry the
+same nine fields as decisions, with the decision fields `null`.
 
 ---
 
