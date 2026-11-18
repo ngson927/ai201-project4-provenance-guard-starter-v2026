@@ -2410,6 +2410,29 @@ best effort (stderr).
 audit log, so a `content_id` with no log entry is an appeal that will come
 back 404: a writer told they can ask for a review, who can't.
 
+*The two run logs, side by side.* Both use `./serve.sh` on the same final
+code; the only difference is the one line.
+
+Before the change (without the fix) → `results/unit9/failures_2026-11-18_1627_without_e4_fix.md`
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| E1 | 30/30 → 200 during a cold start | 30/30, slowest 3.77 s | 30/30, slowest 1.98 s | 30/30, slowest 2.07 s | **MET** |
+| E2 | 200 ≤ 60 s after `kill -9`; death logged | 200 after 8.1 s | 200 after 24.37 s | 200 after 19.41 s | **MET** |
+| E3 | 5/5 → 503 `detector_unavailable`; stays up; 5 logged | 5/5 → 503, 5/5 logged | 5/5 → 503, 5/5 logged | 5/5 → 503, 5/5 logged | **MET** |
+| E4 | 5/5 → 503 `audit_unavailable`, no content_id, 0 × 500 | 0/5 → 503, 5 × 500 | 0/5 → 503, 5 × 500 | 0/5 → 503, 5 × 500 | **MISSED** |
+| E5 | 25 sent = 25 logged = `/metrics`; flood 5×200 + 10×429 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | **MET** |
+
+**After the change: the second run log** → `results/unit9/failures_2026-11-18_1629_with_e4_fix.md`
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| E1 | 30/30 → 200 during a cold start | 30/30, slowest 22.42 s | 30/30, slowest 17.75 s | 30/30, slowest 21.22 s | **MET** |
+| E2 | 200 ≤ 60 s after `kill -9`; death logged | 200 after 2.07 s | 200 after 1.99 s | 200 after 1.94 s | **MET** |
+| E3 | 5/5 → 503 `detector_unavailable`; stays up; 5 logged | 5/5 → 503, 5/5 logged | 5/5 → 503, 5/5 logged | 5/5 → 503, 5/5 logged | **MET** |
+| E4 | 5/5 → 503 `audit_unavailable`, no content_id, 0 × 500 | 5/5 → 503, 0 × 500 | 5/5 → 503, 0 × 500 | 5/5 → 503, 0 × 500 | **MET** |
+| E5 | 25 sent = 25 logged = `/metrics`; flood 5×200 + 10×429 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | **MET** |
+
 *Did it help, and how I know:* **yes, for exactly one criterion.** In the
 one-change runs above, E4 went from **0/5 → 5/5** in every trial (15 × 500 →
 15 × 503). E1, E2, E3 and E5 came out the same both ways.
@@ -2548,9 +2571,7 @@ p95 in each 10-second window at 10×: 40.7, 39.25, 39.14, 40.04, 40.2, 40.28 ms.
 - **Detection itself is unchanged**, by design. Unit 8's What's Still Broken
   still applies in full.
 
-**What I'd Do Next**
-
-The first thing I'd do is make the cold start visible and short:
+*The one thing I'd do first.* I'd make the cold start visible and short:
 - log how long each request waited in the queue, not just how long it was
   served;
 - have the warm-up score one real text, not just load the model;
@@ -2563,51 +2584,44 @@ nothing per request or is invisible to writers.
 
 **How I Used AI**
 
-I used Claude Code (Claude Opus 5.5) for the whole unit. It picked the shape
-from the codebase, wrote the five criteria, and committed them before any
-code. Then it built the instrumentation, the harness and the hardening, and
-wrote this section. Three moments changed what's here:
-- **It ran a "before" nobody asked for.** Without it, five MET verdicts after
-  hardening would have read as five fixes. The real count is one measured
-  fix (E4), one plausible protection the hardware couldn't show (E1), and two
-  that gunicorn and the existing route already handled (E2, E3).
-- **It isolated the improvement to one line.** My first before/after differed
-  by several changes at once. When the brief asked for "one change", it
-  re-ran both sides on the final code with only the E4 fix toggled, in a
-  separate worktree, so the improvement's effect is attributable.
-- **It caught two traps in its own tooling.**
-  - *Gunicorn auto-loads `./gunicorn.conf.py`,* which would have silently
-    given the "before" runs the fixes. The harness passes an empty config
-    for those.
-  - *The load test nearly turned rate limiting off.* The declaration said
-    to give each request its own `creator_id` precisely so the real config
-    could stay on.
-- **It followed RUNNING.md literally instead of trusting its own test.** Its
-  first clean-checkout test reused this machine's caches and passed. When
-  the brief said "it will fail the first time", it re-ran from GitHub with an
-  empty model cache. That's how it found the silent 3 min 53 s first start,
-  which RUNNING.md and the startup log now explain.
-- **Small samples found what big ones hid.** Ten individually timed runs
-  showed the first request after a start costs 12× the rest. The 50-run
-  average had smoothed that away.
-- **It checked its own write-ups against the data and corrected them.**
-  - It had claimed `/metrics` doesn't count 503s as server errors; the code
-    does.
-  - It had credited "what I added" with 0.5 ms when the measured stages sum
-    to 0.7 ms.
-  - It had called a 60 s allowance "12×" a 2 s recovery, when 60 ÷ 2 is
-    30×.
-- **It refused two shortcuts I'd have accepted.**
-  - *It wouldn't rewrite commit messages to make the order read better.*
-    That changes every hash, the very evidence of the order, so it tagged
-    the real commits instead.
-  - *It wouldn't edit a criterion after its results,* even where the
-    self-check found it weak. Those findings are written next to the
-    criteria, not into them.
+I used Claude Code (Claude Opus 5.5) for the whole capstone: choosing the
+shape, writing the criteria (committed before any code), building and
+measuring. Two moments changed what I'm submitting.
 
-Where I'd be careful with it: it writes long, confident prose quickly. Every
-number in this section traces to a file in `results/unit9/`, and that's the
-part worth checking.
+*Moment 1: the improvement that was really several changes*
+- *What I asked for:* one improvement, aimed at the diagnosis, with the full
+  criteria re-run before and after.
+- *What came back:* a before/after pair where all five criteria were MET
+  after hardening. But "before" was the original `gunicorn app:app` on
+  unhardened code, and "after" had a new run path, a new config, a lock, a
+  JSON error handler *and* the audit fix. Five METs after that many changes
+  can't say which one did anything.
+- *What I changed:* I had it re-run both sides on the **final code**, with
+  only the one-line E4 fix toggled (`raise AuditUnavailable` vs. a bare
+  `raise`), in a separate worktree. The result: E4 went 0/5 → 5/5, and the
+  other four came out the same both ways. That's the comparison in The
+  Improvement. It also made the honest count visible: one measured fix, and
+  three criteria (E1–E3) that gunicorn or the existing route already
+  handled.
+
+*Moment 2: testing RUNNING.md "on myself"*
+- *What I asked for:* clone the repo into a new folder and follow RUNNING.md,
+  as a reader would.
+- *What came back:* a clean pass: install in 25 s, model loaded in 6 s. But
+  the test cloned from my local folder, reused this machine's 550 MB model
+  cache, and used a non-default port, so it skipped every step a new reader
+  would actually do first.
+- *What I changed:* I re-ran it **literally**: clone from GitHub, an empty
+  model cache, the default port. It found the real trap. The first start
+  downloads the model inside worker startup and took **3 min 53 s**, with a
+  silent log, while the documented `curl …/health` simply hung. RUNNING.md
+  now downloads the model first and explains the wait, and the service logs
+  "loading the detector model…" before it starts.
+
+Where I'd still be careful with it: it writes long, confident prose quickly,
+and three of its own claims were wrong until checked against the data (how
+`/metrics` counts 503s, a 0.5 ms that was 0.7 ms, and a "12×" that was 30×).
+Every number in this section traces to a file in `results/unit9/`.
 
 ---
 
