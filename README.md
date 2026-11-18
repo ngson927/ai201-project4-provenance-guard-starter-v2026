@@ -1912,6 +1912,28 @@ request after a start. The warm-up loads the model but never runs it, so the
 first forward pass pays torch's one-time setup. Runs 2–10 average **49 ms
 wall / 131 ms CPU**, and that's the steady-state price.
 
+*A hundred people a day, worked out.* **About 46 CPU-seconds and 32 seconds
+of work a day: under a hundredth of a cent of electricity. The real cost is
+keeping a 1 GB process up for the 99.96% of the day it does nothing.** The
+assumption is mine and labelled: each person checks a draft **3 times** (submit,
+revise, check again).
+
+| | Arithmetic | Per day |
+|---|---|---|
+| runs | 100 people × 3 | **300 runs** |
+| CPU | 300 × 0.154 CPU-s (ten-run average) | **46.2 CPU-s** |
+| busy wall time | 300 × 0.105 s | **31.5 s** |
+| energy (estimate, 25 W while busy) | 25 W × 31.5 s = 788 J ÷ 3,600,000 J/kWh | **0.00022 kWh** |
+| electricity (at $0.17/kWh) | 0.00022 × $0.17 | **$0.00004** |
+| time the service is actually busy | 31.5 s ÷ 86,400 s | **0.036% of the day** |
+| memory held to serve it | one worker, all day | **~1,000 MB × 24 h** |
+
+On the capacity side, the 10× load test sustained 10 runs per second with
+nothing queueing. One worker can therefore do at least 10 × 86,400 = 864,000
+runs a day: about 288,000 people at 3 runs each, nearly 3,000 times this
+load. So a hundred people a day costs nothing per request. What it costs is
+an always-on machine with about 1 GB to spare.
+
 The bigger measurement below (50 back-to-back requests) came out cheaper,
 at 33 ms / 94 ms. Requests 0.5 s apart let the CPU idle down in between,
 which the load test showed too. I measured these on `./serve.sh` (Apple M4 Pro,
@@ -2251,8 +2273,31 @@ p95 in each 10-second window at 10×: 40.7, 39.25, 39.14, 40.04, 40.2, 40.28 ms.
     outside the one improvement. It's a one-line fix, recorded here.
 - **Load past ~26 per second is untested.** I didn't test where queueing
   starts.
+- **All five criteria are met, and E1's target was set too low.** It only
+  asked that cold-start requests succeed. The slowest waited 22.4 s, and that
+  passed.
+  - *What I'd do:* tighten it to "30/30 → 200 **and** no request sent during
+    a cold start waits more than 10 s, measured by the client". It would
+    miss today in all three trials (22.4, 17.8 and 21.2 s). Run Log and
+    Verdicts explains why it's this one.
+  - *Why I stopped:* fixing it needs the two changes below (queue-time
+    visibility and a real warm-up), and each is a change to the system after
+    its results. That's next unit's work, not a quiet edit to this one.
 - **Detection itself is unchanged**, by design. Unit 8's What's Still Broken
   still applies in full.
+
+**What I'd Do Next**
+
+The first thing I'd do is make the cold start visible and short:
+- log how long each request waited in the queue, not just how long it was
+  served;
+- have the warm-up score one real text, not just load the model;
+- then hold the tightened E1 (no cold-start wait over 10 s).
+
+I'd do that one first because it's the only harm a writer can still feel
+that my own logs can't show. The slowest submission waited 22.4 s while the
+request log recorded about 125 ms. Every other open item either costs
+nothing per request or is invisible to writers.
 
 **How I Used AI**
 
@@ -2275,6 +2320,32 @@ wrote this section. Three moments changed what's here:
   - *The load test nearly turned rate limiting off.* The declaration said
     to give each request its own `creator_id` precisely so the real config
     could stay on.
+- **It followed RUNNING.md literally instead of trusting its own test.** Its
+  first clean-checkout test reused this machine's caches and passed. When
+  the brief said "it will fail the first time", it re-ran from GitHub with an
+  empty model cache. That's how it found the silent 3 min 53 s first start,
+  which RUNNING.md and the startup log now explain.
+- **Small samples found what big ones hid.** Ten individually timed runs
+  showed the first request after a start costs 12× the rest. The 50-run
+  average had smoothed that away.
+- **It checked its own write-ups against the data and corrected them.**
+  - It had claimed `/metrics` doesn't count 503s as server errors; the code
+    does.
+  - It had credited "what I added" with 0.5 ms when the measured stages sum
+    to 0.7 ms.
+  - It had called a 60 s allowance "12×" a 2 s recovery, when 60 ÷ 2 is
+    30×.
+- **It refused two shortcuts I'd have accepted.**
+  - *It wouldn't rewrite commit messages to make the order read better.*
+    That changes every hash, the very evidence of the order, so it tagged
+    the real commits instead.
+  - *It wouldn't edit a criterion after its results,* even where the
+    self-check found it weak. Those findings are written next to the
+    criteria, not into them.
+
+Where I'd be careful with it: it writes long, confident prose quickly. Every
+number in this section traces to a file in `results/unit9/`, and that's the
+part worth checking.
 
 ---
 
