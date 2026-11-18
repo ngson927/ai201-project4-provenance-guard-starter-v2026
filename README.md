@@ -492,10 +492,12 @@ moment below is something that changed what I submitted.
 
 **Moment 5: what it wouldn't do**
 
-- Criterion 1 needs ten pieces of my own writing. It wouldn't write them,
-  and it wouldn't take them from other files on my machine, because AI-written
-  "my writing" would make a criterion about false positives on real writers
-  meaningless. So that criterion is marked NOT RUN instead of MET.
+- Criterion 1 needs ten pieces of my own writing. At first it wouldn't write
+  them, or take them from other files on my machine, and marked the criterion
+  NOT RUN. Later I asked it to write stand-ins. It did, on the condition that
+  they're labelled as its writing everywhere (in `scenarios.py` and here),
+  and it explained why that run can't show a false positive: the texts aren't
+  human.
 - It also broke something: editing `app.py` in two steps let my debug
   server reload a half-finished file, and it crashed. It said so, finished
   the edit, and ran the after-runs on its own server on port 5001.
@@ -693,17 +695,21 @@ needs the content_id a submission returns, which `run_eval.py` can't do, so
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. My own writing not called AI | ≤ 1 of 10 `ai`, 0 of the 3 plain ones | — | — | — | **NOT RUN** |
+| 1. My own writing not called AI | ≤ 1 of 10 `ai`, 0 of the 3 plain ones | — | — | — | **NOT RUN** (in unit 8) |
+| 1. (re-run 2026-11-18) My own writing not called AI | ≤ 1 of 10 `ai`, 0 of the 3 plain ones | 0/10 `ai`, plain 0/3 † | 0/10 `ai`, plain 0/3 † | 0/10 `ai`, plain 0/3 † | **MET on stand-ins †** |
 | 2. All three labels reachable | human, unsure, ai each ≥ 1 | 3/3 | 3/3 | 3/3 | **MET** |
 | 3. Clearly-AI and clearly-human far apart | mean gap ≥ 0.30 and no overlap | gap 0.487, no overlap | gap 0.487, no overlap | gap 0.487, no overlap | **MET** |
 | 4. Bad input → 400, never 500 | 5 of 5 are 400 with `error`; 5 `rejected` in log | 5/5 | 5/5 | 5/5 | **MET** |
 | 5. Every appeal changes status and is recorded | 5 of 5 real → `under_review` and logged; fake id → 404 | 5/5, 404 | 5/5, 404 | 5/5, 404 | **MET** |
 
 **How I decided each verdict:**
-1. **Not run.** It needs ten pieces of my own writing in `scenarios.py`, and
-   those are still placeholders, so `run_eval.py` refuses to run it. I'm not
-   marking it MET or MISSED without data, and I won't fill it with text I
-   didn't write. It gets run, three trials, once the pieces are in.
+1. **Not run in unit 8**: the ten pieces were still placeholders.
+   **† Re-run on 2026-11-18 with stand-ins**, see "Criterion 1, run with
+   stand-ins" just below. 0 of 10 were labelled `ai` and none of the plain
+   three were, in all three trials, so the target as written holds. But the
+   ten texts were written by Claude, not by me. So this shows how the
+   detector treats *plain writing in general*, not how it treats *my*
+   writing.
 2. **MET.** Every trial returned `ai` (all 3 clearly-AI), `human` (Twain,
    Melville) and `unsure` (Thoreau and all 3 borderline). All three labels
    appeared in all three trials.
@@ -718,6 +724,114 @@ needs the content_id a submission returns, which `run_eval.py` can't do, so
 5. **MET.** In each trial, 5 of 5 appeals returned 200 `under_review`, and the
    log shows `decided` then `appeal` for every id. `not-a-real-id` returned 404
    all three times.
+
+**Criterion 1, run with stand-ins (2026-11-18).** I never supplied ten pieces
+of my own writing. At my request, Claude wrote ten stand-ins in
+`scenarios.py`, labelled as such there: three plain (short sentences,
+everyday words), plus an email, a reflection, a review, an opinion piece,
+instructions, a description and a cover letter. I ran all five criteria again
+on the final code (`run_eval.py --label final_standins` →
+`results/run_2026-11-18_1616_final_standins.md`). Criteria 2–5 came out
+exactly as before.
+
+What this run can and can't show:
+- **What it shows:** the plain three scored **0.70, 0.69, 0.68**, the highest
+  of the ten and all **0.15 below** the AI line (0.85). That's the
+  plain-writer effect from DESIGN.md §3, measured again on new text: short
+  everyday sentences push signal one up (0.74–0.77). The wide unsure band is
+  what keeps them from an accusation.
+- **What it can't show:** these are AI-written texts. A false positive is a
+  *human* labelled AI, so this run can't produce one. In a sense, every
+  `unsure` here is the detector **missing** AI text, the same detection gap
+  the attack set's baseline paragraph showed. The verdict on *my* writing is
+  still open; only my own pieces can close it.
+
+Real output, trial 1 (`run_eval.py::main` → `app.py::submit`; `label` removed):
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.7038,
+    "model_score": 0.7616,
+    "style_score": 0.646,
+    "sent": "I got up late on Saturday. The kitchen was cold, so I made tea and sat"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6924,
+    "model_score": 0.7703,
+    "style_score": 0.6144,
+    "sent": "Our team lost the game on Sunday. We were tired from the start. The ot"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6838,
+    "model_score": 0.7387,
+    "style_score": 0.6289,
+    "sent": "My first job was at a small shop near the bus station. I worked there "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5667,
+    "model_score": 0.4741,
+    "style_score": 0.6593,
+    "sent": "Hi Professor Lee, I'm writing about the lab report due Friday. Our gro"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5108,
+    "model_score": 0.5614,
+    "style_score": 0.4602,
+    "sent": "The hardest part of this project wasn't the code; it was deciding what"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5168,
+    "model_score": 0.6227,
+    "style_score": 0.4109,
+    "sent": "I wanted to like this caf\u00e9 more than I did. The coffee is good \u2014 stron"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.4574,
+    "model_score": 0.4364,
+    "style_score": 0.4784,
+    "sent": "People say group projects teach teamwork, and sometimes they do. More "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6632,
+    "model_score": 0.6351,
+    "style_score": 0.6912,
+    "sent": "To reset the router, first unplug it and wait thirty seconds. Plug it "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.4275,
+    "style_score": 0.9479,
+    "sent": "My grandmother's house had a back porch that leaned a little to the le"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.2561,
+    "style_score": 0.738,
+    "sent": "I'm applying for the part-time data assistant role in your admissions "
+  }
+]
+```
 
 **Stability:** all three trials came out identical to four decimal places.
 GPT-2 runs in eval mode with no sampling, so the same text always gets the
@@ -1160,8 +1274,8 @@ Neither signal can see that the text is talking to the checker. The route can.
 | RQ12 | malformed | 400 — — | **HELD** | 400 — — | **HELD** |
 | FL01_01–05 | flood_same_creator | 400 — — | **HELD** | 400 — — | **HELD** |
 | FL01_06–12 | flood_same_creator | 429 — — | **HELD** | 429 — — | **HELD** |
-**Criteria, before and after** (three trials each; criterion 1 still waiting
-on my own writing):
+**Criteria, before and after** (three trials each; criterion 1 wasn't run at
+the time, see the stand-in run under Run Log and Verdicts):
 
 | Criterion | Target | Before (Run 1 / 2 / 3) | Verdict | After (Run 1 / 2 / 3) | Verdict |
 |---|---|---|---|---|---|
@@ -1287,11 +1401,11 @@ the criteria at three trials → `results/run_2026-11-04_1945_after2.md` and
 `results/appeals_2026-11-04_1945_after2.md`, and the follow-ups →
 `results/improvement2_followups_2026-11-04.json`.
 
-**Third run log** (criteria; criterion 1 still not run):
+**Third run log** (criteria; row 1 is the 2026-11-18 stand-in run on the same code, † see Run Log and Verdicts):
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. My own writing not called AI | ≤ 1 of 10 `ai`, 0 of the 3 plain ones | — | — | — | **NOT RUN** |
+| 1. My own writing not called AI | ≤ 1 of 10 `ai`, 0 of the 3 plain ones | 0/10 `ai`, plain 0/3 † | 0/10 `ai`, plain 0/3 † | 0/10 `ai`, plain 0/3 † | **MET on stand-ins †** |
 | 2. All three labels reachable | human, unsure, ai each ≥ 1 | 3/3 | 3/3 | 3/3 | **MET** |
 | 3. Clearly-AI and clearly-human far apart | mean gap ≥ 0.30 and no overlap | gap 0.445, no overlap | gap 0.445, no overlap | gap 0.445, no overlap | **MET** |
 | 4. Bad input → 400, never 500 | 5 of 5 are 400 with `error`; 5 `rejected` in log | 5/5 | 5/5 | 5/5 | **MET** |
@@ -1448,22 +1562,23 @@ get.
 ## What's Still Broken
 
 After both improvements, **no attack in the set still breaks** (56 held / 0
-broke). What's left: **1 criterion never run**, **one adaptive bypass**
+broke). What's left: **1 criterion run only on stand-ins**, **one adaptive bypass**
 for each improvement (a reworded injection for the first, a four-word
 filler for the second), the undetected AI paragraph, and rate limits a
 caller can sidestep. Each item below says whether the second improvement
 (Stretch, above) changed it.
 
-**Criterion 1, my own writing, was never run.** It needs ten pieces I wrote
-myself in `scenarios.py`. Those are still the starter's placeholders, so
-`run_eval.py` refuses to run them, and I'm not marking it MET or MISSED
-without data.
-- *What I'd do:* put the ten pieces in (the first three plain) and run
-  `run_eval.py --label after`. If more than 1 of 10 comes back `ai`, or any of
-  the plain three, it's MISSED and gets a diagnosis like the others.
-- *Why I stopped:* I didn't collect the pieces before submitting. This is the
-  criterion that matters most to a real writer, and it's the one with no
-  evidence. That's the biggest hole in this submission.
+**Criterion 1 was run on stand-ins, not on my own writing.** On 2026-11-18
+it ran with ten Claude-written texts (0/10 `ai`; plain three at 0.68–0.70).
+That checks the plain-writing effect, but it can't produce a false positive,
+because the texts aren't human.
+- *What I'd do:* replace the ten stand-ins in `scenarios.py` with pieces I
+  actually wrote and run `run_eval.py` again. If more than 1 of 10 comes back
+  `ai`, or any of the plain three, it's MISSED and gets a diagnosis like the
+  others.
+- *Why I stopped:* I didn't collect my own pieces. This is the criterion
+  that matters most to a real writer, and it's still the one with the
+  weakest evidence.
 
 **EV02 and EV07: one punctuation edit drives signal two to 0.00.** *Fixed
 by the second improvement (Stretch, above): both now HELD. The four-word
@@ -1574,7 +1689,7 @@ second-language writer whose careful essay reads as machine-made.
        [x] Audit log with all nine fields, recording rejections too
        [x] The attack set run IN FULL, every input with an outcome
        [x] Ten audit log entries pasted as text
-       [ ] Five criteria across three trials — 4 of 5; criterion 1 NOT RUN (needs my own writing)
+       [x] Five criteria across three trials — criterion 1 on Claude-written stand-ins, disclosed (Run Log and Verdicts)
        [x] A diagnosis for every miss and every broken attack — stage AND mechanism
        [x] One improvement, with Attack Run — After
        [x] What's Still Broken, including the production trade

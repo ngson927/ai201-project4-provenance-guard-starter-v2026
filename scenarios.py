@@ -35,20 +35,87 @@ SCENARIOS = [
     {
         "name": "my own writing",
         "criterion": 1,
-        # ⚠️ Ten pieces I actually wrote. The FIRST THREE are the plain ones —
-        # short sentences, everyday words — that criterion 1 says must never
-        # be labelled AI. run_eval.py refuses to run until these are real.
+        # ⚠️ STAND-INS, NOT THE STUDENT'S WRITING. These ten were written by
+        # Claude (Claude Code, Opus 5.5) on 2026-11-18, at the student's request,
+        # because no pieces of the student's own writing were supplied. The
+        # first three imitate plain writing (short sentences, everyday words).
+        # README → Run Log and Verdicts → "Criterion 1, run with stand-ins"
+        # says what that does and doesn't let this run show.
         "texts": [
-            "REPLACE ME — plain piece 1 of 3 (short sentences, everyday words).",
-            "REPLACE ME — plain piece 2 of 3.",
-            "REPLACE ME — plain piece 3 of 3.",
-            "REPLACE ME — my own writing, piece 4.",
-            "REPLACE ME — my own writing, piece 5.",
-            "REPLACE ME — my own writing, piece 6.",
-            "REPLACE ME — my own writing, piece 7.",
-            "REPLACE ME — my own writing, piece 8.",
-            "REPLACE ME — my own writing, piece 9.",
-            "REPLACE ME — my own writing, piece 10.",
+            # 1 — plain
+            "I got up late on Saturday. The kitchen was cold, so I made tea and "
+            "sat by the window. My sister called at ten. She wanted to borrow my "
+            "car for the afternoon. I said yes, but she had to fill the tank. "
+            "After that I cleaned my room and did two loads of washing. In the "
+            "evening we ordered pizza and watched an old film. It was a quiet "
+            "day, and that was fine with me.",
+            # 2 — plain
+            "Our team lost the game on Sunday. We were tired from the start. The "
+            "other side was faster and they passed the ball well. I missed an "
+            "easy shot in the first half. The coach did not shout at us. He said "
+            "we need to run more in practice. I think he is right. Next week we "
+            "play the team from the north side of town. They beat us last year, "
+            "so we want this one.",
+            # 3 — plain
+            "My first job was at a small shop near the bus station. I worked "
+            "there on weekends when I was sixteen. I put things on the shelves "
+            "and helped people find what they needed. The owner was strict but "
+            "fair. If you came late, he cut your hours. If you worked hard, he "
+            "gave you extra time. I learned to count change fast and to talk to "
+            "strangers. I still use both every week.",
+            # 4 — email
+            "Hi Professor Lee, I'm writing about the lab report due Friday. Our "
+            "group's sensor stopped giving readings on Tuesday, and the "
+            "replacement from the stockroom only arrived this morning, so we've "
+            "lost about two days of data collection. Would it be possible to "
+            "hand in on Monday instead? If not, we can submit what we have on "
+            "Friday and add the rest as an appendix later. Either way, thanks "
+            "for your time, and sorry for the late notice.",
+            # 5 — reflection
+            "The hardest part of this project wasn't the code; it was deciding "
+            "what counted as finished. Every time a test passed, I found another "
+            "case it didn't cover — an empty string, a list where I expected "
+            "text, a request that arrived twice. At some point I had to stop "
+            "adding checks and write down what I wasn't handling. That list "
+            "turned out to be more useful than half the checks, because it told "
+            "the next person where to look first.",
+            # 6 — review
+            "I wanted to like this café more than I did. The coffee is good — "
+            "strong, not bitter — and the window seats are the best place on the "
+            "street to watch the rain. But the music is loud enough that you "
+            "have to lean in to hear anyone, and the one outlet near the tables "
+            "is always taken by nine. I'd go back for a quick cup on the way "
+            "somewhere. I wouldn't go back to study.",
+            # 7 — opinion
+            "People say group projects teach teamwork, and sometimes they do. "
+            "More often they teach one person to do the work while everyone "
+            "else watches the deadline. What fixed it for us was boring: a "
+            "shared list with names next to every task and a ten-minute check-in "
+            "each Monday. Nobody liked the check-in. Nobody missed a task "
+            "either. I don't think that's teamwork exactly, but it got us to the "
+            "end without anyone quitting.",
+            # 8 — instructions
+            "To reset the router, first unplug it and wait thirty seconds. Plug "
+            "it back in and wait until the light on the front turns solid green; "
+            "that can take two or three minutes. If it blinks orange instead, "
+            "press the small button on the back with a paperclip and hold it "
+            "for ten seconds. Then reconnect your laptop to the network named on "
+            "the sticker underneath, using the password printed beside it.",
+            # 9 — description
+            "My grandmother's house had a back porch that leaned a little to "
+            "the left, like it was listening for something. In summer she kept "
+            "tomatoes in buckets along the railing and a radio on the step that "
+            "only played one station. We shelled peas there in the evenings, "
+            "dropping the pods into a paper bag between us, and she told the "
+            "same three stories in a different order each time.",
+            # 10 — cover letter
+            "I'm applying for the part-time data assistant role in your "
+            "admissions office. Last semester I cleaned and merged three years "
+            "of survey responses for a professor's study, about four thousand "
+            "rows with inconsistent dates and duplicate entries, and wrote a "
+            "short guide so the next student could repeat it. I'm comfortable "
+            "in spreadsheets and Python, careful with private data, and "
+            "available fifteen hours a week, including Friday mornings.",
         ],
     },
     {
