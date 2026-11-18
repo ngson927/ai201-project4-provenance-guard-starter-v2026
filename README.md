@@ -1708,7 +1708,7 @@ repeat earlier ones (Run Log and Verdicts, The Improvement, What's Still
 Broken, How I Used AI) belong to the capstone here. The unit 7–8 versions are
 above and unchanged.
 
-**The System and What's New**
+**What This Extends**
 
 The system is **Provenance Guard**, the AI-text detector from units 7–8, in
 this same repository. I picked it because it's the one whose weak points I
@@ -1758,7 +1758,7 @@ exist once the service runs under a real server.
   AI paragraph, the four-word filler bypass. A detector change in this unit
   would make every before/after comparison impossible to attribute.
 - **I'm not hosting it (Path A).** One worker holds about 1 GB against a
-  512 MB free tier (arithmetic under Run Path).
+  512 MB free tier (arithmetic under Running It).
 - **I'm not adding a second worker or a Redis store for the rate limiter.**
   It's the obvious fix for counts that reset on restart, but it's a second
   service to run and document. I measured why it matters (X1) instead.
@@ -1773,7 +1773,7 @@ path at 15:40, the logging fields at 16:21. That's well inside the 90-minute
 budget. The test tooling (`run_failures.py` 374 lines, `run_perf.py` 170) is
 the testing half, not the build.
 
-**Run Path**
+**Running It**
 
 **Path B, local with logs.**
 
@@ -1991,7 +1991,10 @@ commits that matter are tagged:
 | 15:40 | `1301919` | **`capstone-first-results`** | **first capstone results**: the before/after runs of E1–E5 × 3 (`results/unit9/failures_*_before.md`, `*_after.md`), with the hardening |
 
 `git log --oneline --decorate capstone-criteria^..capstone-first-results`
-shows the order. The criteria were copied into `criteria.md` unchanged later
+shows the order. One mismatch with the brief, stated rather than hidden: the
+criteria commit holds `criteria_extension.md`, not `criteria.md`. At the time,
+unit 8's `criteria.md` was still being graded and its rules said to leave it
+unchanged. The criteria were copied into `criteria.md` unchanged later
 (`5cdd5c7`), so that unit 8's criteria file stayed untouched while unit 8 was
 being graded.
 
@@ -2077,6 +2080,246 @@ After → `results/unit9/failures_2026-11-18_1540_after.md`
 | E5 | 25 sent = 25 logged = `/metrics`; flood 5×200 + 10×429 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | **MET** |
 
 X1 (`gunicorn -w 3`, measurement only): flood `.....x.....xxxx` = **10 × 200** where one worker allows 5; three workers' memory **2,894 MB**.
+
+*Real output for each criterion*, pasted from the run files, not described:
+
+E1: `run_failures.py::e1` → `./serve.sh` → `app.py::submit`; trial 1 of the with-fix run. The 30 client results (first 5 and last 2 shown) and the port-open time:
+
+```json
+{
+  "summary": "30/30 → 200; 5xx 0; dropped 0; port open after 0.06s; slowest 22.42s",
+  "port_open_s": 0.06,
+  "results_first_5": [
+    {
+      "status": 200,
+      "seconds": 22.42
+    },
+    {
+      "status": 200,
+      "seconds": 21.41
+    },
+    {
+      "status": 200,
+      "seconds": 20.41
+    },
+    {
+      "status": 200,
+      "seconds": 19.41
+    },
+    {
+      "status": 200,
+      "seconds": 18.49
+    }
+  ],
+  "results_last_2": [
+    {
+      "status": 200,
+      "seconds": 0.05
+    },
+    {
+      "status": 200,
+      "seconds": 0.05
+    }
+  ]
+}
+```
+
+E2: `run_failures.py::e2`; trial 1. The requests after `kill -9`, and gunicorn's own lines:
+
+```json
+{
+  "summary": "killed worker 38445; first 200 after 2.07s; new worker 38447; gunicorn log mentions the dead worker: True",
+  "recovery_s": 2.07,
+  "requests_after_kill": [
+    {
+      "status": 200,
+      "seconds": 2.07,
+      "at_s": 2.07
+    }
+  ],
+  "gunicorn_log_lines": [
+    "[2026-11-18 16:28:38 -0500] [38445] [INFO] Booting worker with pid: 38445",
+    "[2026-11-18 16:28:41 -0500] [38445] [INFO] detector loaded: gpt2",
+    "[2026-11-18 16:28:41 -0500] [38439] [ERROR] Worker (pid:38445) was sent SIGKILL! Perhaps out of memory?",
+    "[2026-11-18 16:28:41 -0500] [38447] [INFO] Booting worker with pid: 38447"
+  ]
+}
+```
+
+E3: `run_failures.py::e3` → `app.py::submit` (`DetectorUnavailable` → `_refuse`); trial 1. The 5 responses and `/health`:
+
+```json
+{
+  "summary": "5/5 → 503 detector_unavailable; /ping 200; /health 200 detector_loaded=False; 5/5 rejections logged; service exited early: False",
+  "results": [
+    {
+      "status": 503,
+      "seconds": 0.0,
+      "error": "detector_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.0,
+      "error": "detector_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.0,
+      "error": "detector_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.0,
+      "error": "detector_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.0,
+      "error": "detector_unavailable"
+    }
+  ],
+  "health": {
+    "detector_loaded": false,
+    "detector_model": "ai201-missing-model",
+    "log_entries": 1145,
+    "ok": true,
+    "rate_limiting": true
+  }
+}
+```
+
+E4: `run_failures.py::e4` → `app.py::submit` → `audit.py::_append`; trial 1, **without** the fix, then **with** it. The responses and the request-log lines from that trial's own log directory:
+
+```json
+{
+  "without_fix": {
+    "summary": "0/5 → 503 audit_unavailable with no content_id; 500s 5; content_ids handed out 0; /ping 200",
+    "results": [
+      {
+        "status": 500,
+        "seconds": 21.57,
+        "error": "internal_error"
+      },
+      {
+        "status": 500,
+        "seconds": 0.03,
+        "error": "internal_error"
+      }
+    ],
+    "request_log_line": {
+      "timestamp": "2026-11-18T21:25:16.246+00:00",
+      "request_id": "497a0715f89c",
+      "pid": 38320,
+      "method": "POST",
+      "path": "/submit",
+      "status": 500,
+      "latency_ms": 102.8,
+      "creator_id": "e4_without_e4_fix_20261118162147_t1_0",
+      "error": "internal_error",
+      "in": {
+        "text_words": 106,
+        "text_chars": 552
+      },
+      "out": null,
+      "stages_ms": {
+        "checks": 0.07,
+        "signal_one": 98.49,
+        "signal_two": 0.29,
+        "combine_label": 0.03
+      }
+    }
+  },
+  "with_fix": {
+    "summary": "5/5 → 503 audit_unavailable with no content_id; 500s 0; content_ids handed out 0; /ping 200",
+    "results": [
+      {
+        "status": 503,
+        "seconds": 1.99,
+        "error": "audit_unavailable"
+      },
+      {
+        "status": 503,
+        "seconds": 0.03,
+        "error": "audit_unavailable"
+      }
+    ],
+    "request_log_line": {
+      "timestamp": "2026-11-18T21:28:59.517+00:00",
+      "request_id": "6f8f65cdfd76",
+      "pid": 38495,
+      "method": "POST",
+      "path": "/submit",
+      "status": 503,
+      "latency_ms": 98.4,
+      "creator_id": "e4_with_e4_fix_20261118162706_t1_0",
+      "error": "audit_unavailable",
+      "in": {
+        "text_words": 106,
+        "text_chars": 552
+      },
+      "out": null,
+      "stages_ms": {
+        "checks": 0.04,
+        "signal_one": 97.03,
+        "signal_two": 0.28,
+        "combine_label": 0.04
+      }
+    }
+  }
+}
+```
+
+E5: `run_failures.py::e5` → `app.py::submit`, `app.py::appeal`, `app.py::metrics`; trial 1. The flood as the client saw it, the client's tally, and `/metrics` for the same window:
+
+```json
+{
+  "summary": "sent 25; request log 25; client {'200': 10, '429': 10, '400': 5} vs /metrics {'200': 10, '400': 5, '429': 10}; flood .....xxxxxxxxxx (5×200); worker RSS MB {38511: 1012.4}",
+  "flood": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    429,
+    429,
+    429,
+    429,
+    429,
+    429,
+    429,
+    429,
+    429,
+    429
+  ],
+  "client_tally": {
+    "200": 10,
+    "429": 10,
+    "400": 5
+  },
+  "metrics": {
+    "since": "2026-11-18T21:29:07.341 00:00",
+    "requests": 25,
+    "by_status": {
+      "200": 10,
+      "400": 5,
+      "429": 10
+    },
+    "by_path": {
+      "/appeal": 2,
+      "/submit": 23
+    },
+    "rate_limited": 10,
+    "submit_latency_ms": {
+      "count": 8,
+      "max": 35.5,
+      "mean": 29.0,
+      "p50": 28.4,
+      "p95": 35.5
+    },
+    "peak_rss_mb": 1012.4
+  }
+}
+```
 
 *Verdicts, and how I decided each:*
 - **E1, MET in every run.** 30/30 → 200 in every trial; no 5xx, no dropped
