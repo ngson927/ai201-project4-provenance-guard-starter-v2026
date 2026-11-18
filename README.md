@@ -1726,6 +1726,18 @@ know from memory: unit 8 attacked it for a week. New in this unit:
 - **A failure harness** (`run_failures.py`) and a perf script
   (`run_perf.py`).
 
+*The original system still works.* I ran unit 8's own tests on the new run
+path and compared every row with the last runs before the extension:
+- the attack set: **56/56 identical** (status, guess, both scores);
+- the five unit 8 criteria: **identical in all 3 trials**;
+- appeals: 5/5, with the made-up id still getting 404;
+- `test.py`: 9/9.
+
+One apparent difference, a 429 instead of a 400 on the "no `creator_id`"
+body, came from running two test scripts back to back on one IP's
+rate-limit allowance. Run alone, it matches. Details:
+`results/unit9/regression_2026-11-18.md`.
+
 **The Shape**
 
 **Shape B, harden against failure.** Provenance Guard worked when everything

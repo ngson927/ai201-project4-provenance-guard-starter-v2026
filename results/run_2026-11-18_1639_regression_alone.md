@@ -1,0 +1,786 @@
+# Run log — regression_alone
+
+- Produced by: `run_eval.py::main`
+- Service: `app.py::submit` · scoring: `scoring.py::combine_signals`
+- 3 trials per criterion · 2026-11-18 16:39
+
+Fill in Target from `criteria.md`, and Run and Verdict from the output
+underneath. Whether a trial passed depends on the criterion you wrote.
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| 1. my own writing |  |   |   |   |  |
+| 3. clearly AI |  |   |   |   |  |
+| 3. clearly human |  |   |   |   |  |
+| 2. borderline |  |   |   |   |  |
+| 4. bad input |  |   |   |   |  |
+
+---
+
+## What actually came back
+
+Real output. Paste the relevant parts into your README — the rubric
+asks for the actual JSON, not a description of it.
+
+### my own writing
+
+**Trial 1**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.7038,
+    "model_score": 0.7616,
+    "style_score": 0.646,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I got up late on Saturday. The kitchen was cold, so I made tea and sat"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6924,
+    "model_score": 0.7703,
+    "style_score": 0.6144,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Our team lost the game on Sunday. We were tired from the start. The ot"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6838,
+    "model_score": 0.7387,
+    "style_score": 0.6289,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "My first job was at a small shop near the bus station. I worked there "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5667,
+    "model_score": 0.4741,
+    "style_score": 0.6593,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Hi Professor Lee, I'm writing about the lab report due Friday. Our gro"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5108,
+    "model_score": 0.5614,
+    "style_score": 0.4602,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "The hardest part of this project wasn't the code; it was deciding what"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5168,
+    "model_score": 0.6227,
+    "style_score": 0.4109,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I wanted to like this caf\u00e9 more than I did. The coffee is good \u2014 stron"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.4574,
+    "model_score": 0.4364,
+    "style_score": 0.4784,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "People say group projects teach teamwork, and sometimes they do. More "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6632,
+    "model_score": 0.6351,
+    "style_score": 0.6912,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "To reset the router, first unplug it and wait thirty seconds. Plug it "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.4275,
+    "style_score": 0.9479,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "My grandmother's house had a back porch that leaned a little to the le"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.2561,
+    "style_score": 0.738,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I'm applying for the part-time data assistant role in your admissions "
+  }
+]
+```
+
+**Trial 2**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.7038,
+    "model_score": 0.7616,
+    "style_score": 0.646,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I got up late on Saturday. The kitchen was cold, so I made tea and sat"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6924,
+    "model_score": 0.7703,
+    "style_score": 0.6144,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Our team lost the game on Sunday. We were tired from the start. The ot"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6838,
+    "model_score": 0.7387,
+    "style_score": 0.6289,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "My first job was at a small shop near the bus station. I worked there "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5667,
+    "model_score": 0.4741,
+    "style_score": 0.6593,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Hi Professor Lee, I'm writing about the lab report due Friday. Our gro"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5108,
+    "model_score": 0.5614,
+    "style_score": 0.4602,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "The hardest part of this project wasn't the code; it was deciding what"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5168,
+    "model_score": 0.6227,
+    "style_score": 0.4109,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I wanted to like this caf\u00e9 more than I did. The coffee is good \u2014 stron"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.4574,
+    "model_score": 0.4364,
+    "style_score": 0.4784,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "People say group projects teach teamwork, and sometimes they do. More "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6632,
+    "model_score": 0.6351,
+    "style_score": 0.6912,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "To reset the router, first unplug it and wait thirty seconds. Plug it "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.4275,
+    "style_score": 0.9479,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "My grandmother's house had a back porch that leaned a little to the le"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.2561,
+    "style_score": 0.738,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I'm applying for the part-time data assistant role in your admissions "
+  }
+]
+```
+
+**Trial 3**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.7038,
+    "model_score": 0.7616,
+    "style_score": 0.646,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I got up late on Saturday. The kitchen was cold, so I made tea and sat"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6924,
+    "model_score": 0.7703,
+    "style_score": 0.6144,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Our team lost the game on Sunday. We were tired from the start. The ot"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6838,
+    "model_score": 0.7387,
+    "style_score": 0.6289,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "My first job was at a small shop near the bus station. I worked there "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5667,
+    "model_score": 0.4741,
+    "style_score": 0.6593,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Hi Professor Lee, I'm writing about the lab report due Friday. Our gro"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5108,
+    "model_score": 0.5614,
+    "style_score": 0.4602,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "The hardest part of this project wasn't the code; it was deciding what"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5168,
+    "model_score": 0.6227,
+    "style_score": 0.4109,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I wanted to like this caf\u00e9 more than I did. The coffee is good \u2014 stron"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.4574,
+    "model_score": 0.4364,
+    "style_score": 0.4784,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "People say group projects teach teamwork, and sometimes they do. More "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6632,
+    "model_score": 0.6351,
+    "style_score": 0.6912,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "To reset the router, first unplug it and wait thirty seconds. Plug it "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.4275,
+    "style_score": 0.9479,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "My grandmother's house had a back porch that leaned a little to the le"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5,
+    "model_score": 0.2561,
+    "style_score": 0.738,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "I'm applying for the part-time data assistant role in your admissions "
+  }
+]
+```
+
+### clearly AI
+
+**Trial 1**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9247,
+    "model_score": 0.8498,
+    "style_score": 0.9996,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Artificial intelligence has transformed numerous industries in recent "
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9268,
+    "model_score": 0.8537,
+    "style_score": 1.0,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Time management is an essential skill for students who want to achieve"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9747,
+    "model_score": 0.9493,
+    "style_score": 1.0,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Climate change is one of the most pressing challenges facing humanity "
+  }
+]
+```
+
+**Trial 2**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9247,
+    "model_score": 0.8498,
+    "style_score": 0.9996,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Artificial intelligence has transformed numerous industries in recent "
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9268,
+    "model_score": 0.8537,
+    "style_score": 1.0,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Time management is an essential skill for students who want to achieve"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9747,
+    "model_score": 0.9493,
+    "style_score": 1.0,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Climate change is one of the most pressing challenges facing humanity "
+  }
+]
+```
+
+**Trial 3**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9247,
+    "model_score": 0.8498,
+    "style_score": 0.9996,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Artificial intelligence has transformed numerous industries in recent "
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9268,
+    "model_score": 0.8537,
+    "style_score": 1.0,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Time management is an essential skill for students who want to achieve"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.9747,
+    "model_score": 0.9493,
+    "style_score": 1.0,
+    "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.",
+    "sent": "Climate change is one of the most pressing challenges facing humanity "
+  }
+]
+```
+
+### clearly human
+
+**Trial 1**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.405,
+    "model_score": 0.4632,
+    "style_score": 0.3468,
+    "label": "We think this was most likely written by a person. Our automated checks didn't find the patterns we usually see in AI-generated writing.",
+    "sent": "You don't know about me without you have read a book by the name of Th"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.3905,
+    "model_score": 0.4026,
+    "style_score": 0.3784,
+    "label": "We think this was most likely written by a person. Our automated checks didn't find the patterns we usually see in AI-generated writing.",
+    "sent": "Call me Ishmael. Some years ago\u2014never mind how long precisely\u2014having l"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6955,
+    "model_score": 0.7577,
+    "style_score": 0.6333,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "When I wrote the following pages, or rather the bulk of them, I lived "
+  }
+]
+```
+
+**Trial 2**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.405,
+    "model_score": 0.4632,
+    "style_score": 0.3468,
+    "label": "We think this was most likely written by a person. Our automated checks didn't find the patterns we usually see in AI-generated writing.",
+    "sent": "You don't know about me without you have read a book by the name of Th"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.3905,
+    "model_score": 0.4026,
+    "style_score": 0.3784,
+    "label": "We think this was most likely written by a person. Our automated checks didn't find the patterns we usually see in AI-generated writing.",
+    "sent": "Call me Ishmael. Some years ago\u2014never mind how long precisely\u2014having l"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6955,
+    "model_score": 0.7577,
+    "style_score": 0.6333,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "When I wrote the following pages, or rather the bulk of them, I lived "
+  }
+]
+```
+
+**Trial 3**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.405,
+    "model_score": 0.4632,
+    "style_score": 0.3468,
+    "label": "We think this was most likely written by a person. Our automated checks didn't find the patterns we usually see in AI-generated writing.",
+    "sent": "You don't know about me without you have read a book by the name of Th"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.3905,
+    "model_score": 0.4026,
+    "style_score": 0.3784,
+    "label": "We think this was most likely written by a person. Our automated checks didn't find the patterns we usually see in AI-generated writing.",
+    "sent": "Call me Ishmael. Some years ago\u2014never mind how long precisely\u2014having l"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6955,
+    "model_score": 0.7577,
+    "style_score": 0.6333,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "When I wrote the following pages, or rather the bulk of them, I lived "
+  }
+]
+```
+
+### borderline
+
+**Trial 1**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6671,
+    "model_score": 0.6478,
+    "style_score": 0.6863,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "AI has changed a lot of industries in recent years, and the gains in e"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.465,
+    "model_score": 0.5968,
+    "style_score": 0.3333,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Remote work is here to stay. Numerous studies have consistently shown "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6095,
+    "model_score": 0.7092,
+    "style_score": 0.5097,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "The object of this Essay is to assert one very simple principle, as en"
+  }
+]
+```
+
+**Trial 2**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6671,
+    "model_score": 0.6478,
+    "style_score": 0.6863,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "AI has changed a lot of industries in recent years, and the gains in e"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.465,
+    "model_score": 0.5968,
+    "style_score": 0.3333,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Remote work is here to stay. Numerous studies have consistently shown "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6095,
+    "model_score": 0.7092,
+    "style_score": 0.5097,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "The object of this Essay is to assert one very simple principle, as en"
+  }
+]
+```
+
+**Trial 3**
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6671,
+    "model_score": 0.6478,
+    "style_score": 0.6863,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "AI has changed a lot of industries in recent years, and the gains in e"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.465,
+    "model_score": 0.5968,
+    "style_score": 0.3333,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "Remote work is here to stay. Numerous studies have consistently shown "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6095,
+    "model_score": 0.7092,
+    "style_score": 0.5097,
+    "label": "We can't tell either way, so we're not making a call on this piece. It has some patterns that show up in both human and AI writing \u2014 and a lot of writing people do themselves lands here, especially clear, straightforward writing. Nothing about this result says you did anything wrong. If you'd like a person to take a look, you can ask for a review.",
+    "sent": "The object of this Essay is to assert one very simple principle, as en"
+  }
+]
+```
+
+### bad input
+
+**Trial 1**
+
+```json
+[
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "(empty text)"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "word word word word word word word word word word word word word word "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": \"Artificial intelligence has transformed numerous industries in recent years, offering significant benefits in "
+  }
+]
+```
+
+**Trial 2**
+
+```json
+[
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "(empty text)"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "word word word word word word word word word word word word word word "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": \"Artificial intelligence has transformed numerous industries in recent years, offering significant benefits in "
+  }
+]
+```
+
+**Trial 3**
+
+```json
+[
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "(empty text)"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "word word word word word word word word word word word word word word "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "label": null,
+    "sent": "{\"text\": \"Artificial intelligence has transformed numerous industries in recent years, offering significant benefits in "
+  }
+]
+```
