@@ -1910,7 +1910,9 @@ The file is `results/unit9/cost_10runs_2026-11-18.md`.
 ten.** That average is dominated by **run 1 (607 ms)**: the first real
 request after a start. The warm-up loads the model but never runs it, so the
 first forward pass pays torch's one-time setup. Runs 2–10 average **49 ms
-wall / 131 ms CPU**, and that's the steady-state price.
+wall / 131 ms CPU**, and that's the steady-state price. Since the second
+measured improvement (Stretch), the warm-up runs one scoring pass, and the
+same ten runs average **50.6 ms wall / 138 ms CPU**, with run 1 at 57.8 ms.
 
 *A hundred people a day, worked out.* **About 46 CPU-seconds and 32 seconds
 of work a day: under a hundredth of a cent of electricity. The real cost is
@@ -2480,6 +2482,55 @@ building* (this paragraph was committed before any code for it):
   (well under a second), and E3's warm-up path does a little more work
   before it fails.
 
+*Built and measured* (`f8de8db`). One change in
+`gunicorn.conf.py::post_worker_init`: after loading the model, the warm-up
+scores one sample sentence. gunicorn now logs `detector warmed with one
+scoring pass in 59 ms`.
+
+**Third run log**, E1–E5 × 3 on the final code with the warm pass →
+`results/unit9/failures_2026-11-18_1707_second_improvement.md`:
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| E1 | 30/30 → 200 during a cold start | 30/30, slowest 5.35 s | 30/30, slowest 6.28 s | 30/30, slowest 4.72 s | **MET** |
+| E2 | 200 ≤ 60 s after `kill -9`; death logged | 200 after 5.38 s | 200 after 5.22 s | 200 after 5.78 s | **MET** |
+| E3 | 5/5 → 503 `detector_unavailable`; stays up; 5 logged | 5/5 → 503, 5/5 logged | 5/5 → 503, 5/5 logged | 5/5 → 503, 5/5 logged | **MET** |
+| E4 | 5/5 → 503 `audit_unavailable`, no content_id, 0 × 500 | 5/5 → 503, 0 × 500 | 5/5 → 503, 0 × 500 | 5/5 → 503, 0 × 500 | **MET** |
+| E5 | 25 sent = 25 logged = `/metrics`; flood 5×200 + 10×429 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | 25/25 logged, flood 5×200 | **MET** |
+
+**The ten-run cost, before and after the warm pass**, measured the same way
+(`results/unit9/cost_10runs_2026-11-18_after_warm_pass.md`):
+
+| Run | Words | Client wall ms | Server `latency_ms` | of which signal one | Worker CPU ms | Guess |
+|---|---|---|---|---|---|---|
+| 1 | 106 | 57.8 | 53.7 | 52.43 | 170 | human |
+| 2 | 92 | 52.0 | 47.5 | 46.12 | 130 | ai |
+| 3 | 119 | 55.7 | 51.2 | 50.1 | 160 | unsure |
+| 4 | 84 | 40.7 | 37.3 | 36.21 | 100 | unsure |
+| 5 | 109 | 51.9 | 47.4 | 46.22 | 140 | human |
+| 6 | 106 | 49.7 | 46.1 | 44.95 | 140 | human |
+| 7 | 92 | 48.3 | 44.2 | 43.08 | 130 | ai |
+| 8 | 119 | 51.4 | 47.6 | 46.45 | 140 | unsure |
+| 9 | 84 | 45.7 | 41.1 | 39.93 | 120 | unsure |
+| 10 | 109 | 52.6 | 48.1 | 46.9 | 150 | human |
+| **average** | | **50.6** | **46.4** | **45.2** | **138** | |
+
+**Did it help? Yes, for exactly what it targeted.**
+- **The first request after a start went from 607 ms to 57.8 ms**, in line
+  with the other nine.
+- **The ten-run average fell from 105 to 50.6 ms of wall time** (154 → 138
+  ms of CPU).
+- **All five criteria are still MET** in all three trials.
+- **The cost is as predicted:** every start does one extra 59 ms pass. E3's
+  path is unchanged, because a missing model fails at `warm_up()`, before
+  the new line, inside the same try/except.
+
+**What it did *not* do:** E1's slowest cold-start request in this run was
+4.7–6.3 s, against 17.8–22.4 s in the previous run. A 59 ms warm pass can't
+save 15 s. Cold model loads on this machine have ranged from 2 s to 22 s
+across runs, so that's load-time variance, not this change. The tightened E1
+(no cold-start wait over 10 s) is still not something I can claim.
+
 *Latency breakdown*, 50 warm `/submit`, from each request's `stages_ms`:
 
 | Stage | mean ms | p50 | p95 | share of the request |
@@ -2550,12 +2601,10 @@ p95 in each 10-second window at 10×: 40.7, 39.25, 39.14, 40.04, 40.2, 40.28 ms.
     (or a proxy in front) log queue time.
   - *Why I stopped:* found it while writing this up; the fix needs a component
     the service doesn't have.
-- **The first request after every start is about 12× slower (607 ms vs
-  ~49 ms).** Found by the ten-run cost measurement. The warm-up loads the
-  model but never runs it, so the first writer pays torch's one-time setup.
-  - *What I'd do:* score one short sample text inside `post_worker_init`.
-  - *Why I stopped:* it's a change to the system after the criteria results,
-    outside the one improvement. It's a one-line fix, recorded here.
+- **Fixed since: the first request after every start used to be about 12×
+  slower (607 ms vs ~49 ms).** The warm-up loaded the model but never ran it.
+  The second measured improvement (Stretch) makes the warm-up score one
+  sentence, and run 1 is now 57.8 ms.
 - **Load past ~26 per second is untested.** I didn't test where queueing
   starts.
 - **All five criteria are met, and E1's target was set too low.** It only
@@ -2574,7 +2623,9 @@ p95 in each 10-second window at 10×: 40.7, 39.25, 39.14, 40.04, 40.2, 40.28 ms.
 *The one thing I'd do first.* I'd make the cold start visible and short:
 - log how long each request waited in the queue, not just how long it was
   served;
-- have the warm-up score one real text, not just load the model;
+- the warm-up already scores one real text (Stretch), which fixed the slow
+  first *request*. What's left is the slow, variable *load* (2–22 s), which
+  that pass can't touch;
 - then hold the tightened E1 (no cold-start wait over 10 s).
 
 I'd do that one first because it's the only harm a writer can still feel
