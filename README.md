@@ -1719,6 +1719,28 @@ appeal that will 404. The extension is the failure handling. The deploy and
 instrumentation work came with it. No new project and no rewrite: every
 change is to the service unit 8 tested.
 
+**In scope:** the failure handling for five bad paths (a cold start, a
+killed worker, a missing model, an audit log it can't write, and requests the
+logs don't record); the run path that exposes them (`./serve.sh` → gunicorn);
+the instrumentation that measures them; and a cost measurement.
+
+**Out of scope, on purpose:**
+- **Detection quality.** No changes to the signals, weights or thresholds.
+  Unit 8's open problems (the undetected AI paragraph, the four-word filler
+  bypass) stay open and documented there. Mixing a detector change into this
+  unit would make the run logs impossible to attribute.
+- **Hosting.** Path A doesn't fit: one worker needs about 1 GB against a
+  512 MB free tier (arithmetic below).
+- **More than one worker, and a shared rate-limit store (Redis).** That's a
+  second service to run and document. I measured why it matters (X1) instead
+  of building it.
+- **Authentication for reviewers, HTTPS, log rotation.** All real needs for a
+  public deployment; none of them is a failure on the path this unit tests.
+- **Retries inside the service.** Nothing in the service calls an outside
+  API, so there's nothing to retry. The failures here are local (memory,
+  disk, process), and the right answer to them is a clear refusal or a
+  restart, not a retry.
+
 **Path B, and the arithmetic that decides it.** These are measured numbers,
 not estimates:
 
@@ -1773,7 +1795,8 @@ Each setting in `gunicorn.conf.py` comes from a measurement or a failure:
 ### The criteria, run before and after
 
 Five criteria about the bad path, committed before anything was built
-(`criteria_extension.md`, commit `e2cbc0b`). `run_failures.py` runs each one
+(commit `e2cbc0b`, now copied unchanged into `criteria.md` → "Unit 9 —
+extension criteria", below unit 8's untouched five). `run_failures.py` runs each one
 three times against **real gunicorn**, every trial from a fresh start. It
 causes each failure for real: no fault-injection switches in the service.
 - **E2:** it `kill -9`s the worker.
@@ -1888,6 +1911,44 @@ X1 (`gunicorn -w 3`, measurement only): flood `.....x.....xxxx` = **10 × 200** 
   `detector NOT loaded, serving 503s for /submit` and stayed up, in all three
   trials.
 
+### Verdicts and diagnosis
+
+| Criterion | Before | After | How I decided |
+|---|---|---|---|
+| E1 cold start | MET | MET | 30/30 → 200 in every trial, both runs; no 5xx, no dropped connection |
+| E2 worker crash | MET | MET | a 200 within 60 s of `kill -9` (worst 8.9 s), and the gunicorn log names the dead worker, in every trial |
+| E3 missing model | MET | MET | 5/5 → 503 `detector_unavailable`, `/ping` and `/health` 200, 5/5 rejections logged, every trial |
+| **E4 unwritable log** | **MISSED** | MET | before: **5/5 → 500** in every trial, so 0/5 met the target; after: 5/5 → 503 `audit_unavailable`, no `content_id` |
+| E5 trace and numbers | MET | MET | 25 sent = 25 lines in `requests.jsonl` = `/metrics` counts, and the flood was exactly 5 × 200 + 10 × 429, every trial |
+
+**The miss, E4 before: stage = the route's write to the audit log
+(`app.py::submit` → `audit.py::_append`).** The mechanism:
+1. `submit` scores the text first. That's the 2.4 s first request in the
+   E4 log: the model loaded and both signals ran.
+2. It then calls `audit.log_decision`, which opens `audit.jsonl` for
+   appending.
+3. The file is read-only, so `open()` raises `PermissionError` (an
+   `OSError`). Nothing between `_append` and Flask catches it, so Flask
+   returns its default **HTML** 500, with no `error` code (`"error": null`
+   in the request log line).
+4. The decision was computed and then thrown away. The writer gets a
+   generic error page instead of "we couldn't record this", and has nothing
+   to quote if they ask for help.
+5. The same `OSError` would have hit `_refuse`'s own log call. So with the log
+   unwritable, *every* refusal (400, 429, 503) would also have become a 500.
+
+**The fix follows the mechanism:**
+- `_append` turns any `OSError` into `audit.AuditUnavailable`, a known
+  condition.
+- `submit` and `appeal` answer that with **503 `audit_unavailable`**, and
+  `submit` never returns the `content_id`, because `/appeal` finds
+  submissions through this log, so an unlogged id is an appeal that will 404.
+- Refusal logging became best effort (stderr), so a refusal stays a clean
+  refusal.
+
+**No misses after the fix.** E1–E3 and E5 passed both times, and the section
+above says plainly that on this machine they weren't failing before.
+
 The gunicorn log from E2, after (trial 1), showing the kill and the
 automatic restart:
 
@@ -1953,6 +2014,45 @@ appeal, and the rate-limit rejection:
 {"timestamp": "2026-11-18T20:41:27+00:00", "content_id": "43407a6d-9241-4cb1-a1ae-dae1c245b8f1", "creator_id": "session_writer_b", "event": "appeal", "status": "under_review", "reasoning": "I wrote this for my economics class; I can share my notes."}
 {"timestamp": "2026-11-18T20:41:27+00:00", "content_id": null, "creator_id": "session_writer_c", "guess": null, "model_score": null, "style_score": null, "combined_score": null, "label": null, "status": "rejected", "event": "rejected", "reason": "rate_limited", "limit": "5 per 1 minute"}
 ```
+
+### What one run costs
+
+This service has no API bill: the model runs locally, and nothing is paid
+per request. So its cost is compute, memory and time. I measured those on
+the real run path, not estimated them (Apple M4 Pro, 24 GB).
+
+**How I measured:** I started `./serve.sh` (rate limiting off for the
+measurement, so every request was scored) and waited for `/health` to report
+the model loaded. I read the worker's CPU time from `ps -o cputime`, sent 50
+`/submit` requests one after another (5 calibration texts of 84–119 words,
+rotated), then read CPU time again.
+
+| One… | Wall time | CPU time | Memory | How I got it |
+|---|---|---|---|---|
+| **service start** (launch → model loaded) | **2.0 s** | **1.4 CPU-s** | **~1,000 MB** resident, held the whole time it runs | `/health` polled from launch; `ps` on the worker |
+| **`/submit`, warm** | **33 ms** p50, 37 ms p95, 93 ms max | **94 ms** (4.7 CPU-s ÷ 50) | no growth (1,027 MB after 50) | 50 timed requests; `ps` CPU delta |
+| **cold `/submit`** (first after a start, before hardening) | 2.4–19.8 s | — | — | the slowest requests in E1/E4 before; the model loaded inside the first one |
+| **`run_eval.py`** (5 criteria × 3 trials) | **1.6 s** of requests (72 requests) on a warm service | ≈ 5.4 CPU-s (57 scored × 94 ms) | — | first-to-last timestamp in `requests.jsonl` |
+| **`run_failures.py`** (E1–E5 × 3 + X1) | **187 s** before, **196 s** after | — | peaks at ~2.9 GB during X1 (three workers) | run start stamp → report file written |
+| **disk** | — | — | **~1.5 GB**: venv 947 MB + model 525 MB | `du -sh` |
+
+CPU time is about 3× wall time per request because torch spreads one forward
+pass over several cores.
+
+**In money:** I can't read the chip's power draw without root
+(`powermetrics`), so this part is an estimate, and I'm labelling it as one.
+- **Assumptions:** about 25 W extra package power while scoring, and
+  $0.17 per kWh.
+- **Per `/submit`:** 25 W × 0.033 s ≈ 0.8 J ≈ 2.3 × 10⁻⁷ kWh, or about
+  **$0.00000004**.
+- **A million submissions:** about **$0.04** of electricity. Even if the
+  power assumption is 3× too low, it rounds to nothing.
+
+**The real cost is the 1 GB of memory held all the time.** That's what puts
+this service outside a free host, and it's what you'd pay for if it were
+hosted: a machine with at least 2 GB, running all the time. That makes the
+cost per hour, not per request. The second cost is the 3 minutes that one
+`run_failures.py` run takes. That's why it runs three trials, not ten.
 
 ### What's still broken (unit 9)
 
