@@ -1958,6 +1958,21 @@ Five criteria, all about the extension's bad paths, written and committed
 | E4 | A decision that can't be logged isn't handed out | 5/5 → 503 `audit_unavailable`, no `content_id`; 0 × 500 |
 | E5 | Every request leaves a trace, and the numbers match | 25 sent = 25 logged = `/metrics`; flood exactly 5 × 200 + 10 × 429 |
 
+*Commit trail: criteria first, results after.* The commit messages are
+left as they were, because rewriting them would change every hash. The two
+commits that matter are tagged:
+
+| Time | Commit | Tag | What it contains |
+|---|---|---|---|
+| 15:28 | `e2cbc0b` | **`capstone-criteria`** | **add capstone criteria**: only `criteria_extension.md`, the five criteria. No code, no results |
+| 15:31 | `e7e6e0d` | — | the instrumentation and the harness. Its `logs/requests.jsonl` holds 27 lines from one smoke run of the harness (an E5 trial), the first output of any kind |
+| 15:40 | `1301919` | **`capstone-first-results`** | **first capstone results**: the before/after runs of E1–E5 × 3 (`results/unit9/failures_*_before.md`, `*_after.md`), with the hardening |
+
+`git log --oneline --decorate capstone-criteria^..capstone-first-results`
+shows the order. The criteria were copied into `criteria.md` unchanged later
+(`5cdd5c7`), so that unit 8's criteria file stayed untouched while unit 8 was
+being graded.
+
 *Self-check, done honestly after the results, and not used to edit
 anything.* Each criterion has a number or a plainly visible target, is about
 the extension's bad path, and is checked by a script. Two weak spots:
