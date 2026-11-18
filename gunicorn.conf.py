@@ -60,6 +60,15 @@ def post_worker_init(worker):
     try:
         detector.warm_up()
         worker.log.info("detector loaded: %s", os.getenv("AI201_DETECTOR_MODEL", "gpt2"))
+        # Capstone stretch, second improvement: loading isn't enough. The first
+        # forward pass pays torch's one-time setup (measured: 607 ms vs ~49 ms),
+        # so run one here instead of on the first writer's request.
+        import time as _time
+        t0 = _time.perf_counter()
+        detector.model_signal("The service is starting. This sentence warms up the model "
+                              "so the first real submission doesn't pay for it.")
+        worker.log.info("detector warmed with one scoring pass in %.0f ms",
+                        (_time.perf_counter() - t0) * 1000)
     except detector.DetectorUnavailable as exc:
         worker.log.error("detector NOT loaded, serving 503s for /submit: %s",
                          str(exc).splitlines()[0])
