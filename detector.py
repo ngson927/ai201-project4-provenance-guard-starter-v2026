@@ -48,6 +48,13 @@ import config
 _model = None
 _tokenizer = None
 
+# Unit 9: the service runs with several threads per worker (gunicorn.conf.py).
+# Without this, two first requests both see `_model is None` and both load
+# 550 MB of weights at once.
+import threading
+
+_load_lock = threading.Lock()
+
 
 class DetectorUnavailable(RuntimeError):
     """The model couldn't be loaded — no download yet, or no disk."""
@@ -55,8 +62,15 @@ class DetectorUnavailable(RuntimeError):
 
 def _load():
     """Load the model once and keep it. First call downloads ~550 MB."""
-    global _model, _tokenizer
     if _model is not None:
+        return _model, _tokenizer
+    with _load_lock:
+        return _load_locked()
+
+
+def _load_locked():
+    global _model, _tokenizer
+    if _model is not None:          # another thread finished while we waited
         return _model, _tokenizer
 
     try:

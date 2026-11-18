@@ -64,7 +64,11 @@ class Service:
     def command(self):
         if self.mode == "after":
             return [str(ROOT / "serve.sh")]
-        cmd = [GUNICORN, "app:app", "--bind", f"127.0.0.1:{PORT}"]   # RUNNING.md, on loopback
+        # RUNNING.md's command, on loopback. The empty -c stops gunicorn from
+        # auto-loading ./gunicorn.conf.py, which would hand "before" the fixes.
+        empty = Path(tempfile.gettempdir()) / "ai201_empty_gunicorn_conf.py"
+        empty.write_text("")
+        cmd = [GUNICORN, "-c", str(empty), "app:app", "--bind", f"127.0.0.1:{PORT}"]
         if self.workers:
             cmd += ["--workers", str(self.workers)]
         return cmd

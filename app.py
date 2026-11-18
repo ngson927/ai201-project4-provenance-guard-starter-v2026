@@ -199,7 +199,7 @@ if config.RATE_LIMITING_ENABLED:
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
             payload = {}
-        audit.log_rejection(
+        _log_rejection_best_effort(
             creator_id=payload.get("creator_id", "unknown"),
             reason="rate_limited",
             limit=str(exc.description),
@@ -362,16 +362,23 @@ def submit():
     if checker_directed and guess == "human":
         guess, label = "unsure", scoring.LABEL_UNSURE
 
-    audit.log_decision(
-        content_id=content_id,
-        creator_id=creator_id,
-        guess=guess,
-        model_score=model_score,
-        style_score=style_score,
-        combined_score=confidence,
-        label=label,
-        checker_directed=checker_directed,
-    )
+    # Unit 9 (criteria_extension.md E4): /appeal finds a submission through
+    # this log. A content_id handed out without an entry is an appeal that
+    # will 404, so if the decision can't be recorded, it isn't handed out.
+    try:
+        audit.log_decision(
+            content_id=content_id,
+            creator_id=creator_id,
+            guess=guess,
+            model_score=model_score,
+            style_score=style_score,
+            combined_score=confidence,
+            label=label,
+            checker_directed=checker_directed,
+        )
+    except audit.AuditUnavailable as exc:
+        print(f"submit refused, decision not recorded: {exc}", file=sys.stderr, flush=True)
+        return _audit_unavailable()
 
     return jsonify({
         "content_id": content_id,
@@ -388,8 +395,44 @@ def submit():
 
 def _refuse(creator_id, error, message, status=400):
     """Turn a request away, and leave a trace of it in the log."""
-    audit.log_rejection(creator_id=creator_id, reason=error)
+    _log_rejection_best_effort(creator_id=creator_id, reason=error)
     return jsonify({"error": error, "message": message}), status
+
+
+def _log_rejection_best_effort(**fields):
+    """
+    Unit 9: a refusal must still be a clean refusal when the audit log can't
+    be written. The request log (logs/requests.jsonl) still has it, and the
+    failure goes to stderr, which is gunicorn's error log.
+    """
+    try:
+        audit.log_rejection(**fields)
+    except audit.AuditUnavailable as exc:
+        print(f"rejection not recorded in audit log: {exc} {fields}", file=sys.stderr, flush=True)
+
+
+def _audit_unavailable():
+    return jsonify({
+        "error": "audit_unavailable",
+        "message": "We can't record decisions right now, so we're not making one. "
+                   "Nothing was saved. Please try again shortly.",
+    }), 503
+
+
+@app.errorhandler(Exception)
+def _unexpected(exc):
+    """
+    Unit 9: anything nobody planned for still comes back as JSON with an error
+    code, not Flask's HTML page. The traceback goes to the error log; the
+    request log records the 500 with `error: internal_error`.
+    """
+    from werkzeug.exceptions import HTTPException
+
+    if isinstance(exc, HTTPException):          # 404, 405, 429… keep their own answer
+        return exc
+    app.logger.exception("unhandled error in %s", request.path)
+    return jsonify({"error": "internal_error",
+                    "message": "Something went wrong on our side. Nothing was decided."}), 500
 
 
 @app.post("/appeal")
@@ -443,7 +486,13 @@ def appeal():
         return _refuse(creator_id, "already_under_review",
                        "This one is already waiting for a person to review it.", status=409)
 
-    audit.log_appeal(content_id=content_id, creator_id=creator_id, reasoning=reasoning)
+    try:
+        audit.log_appeal(content_id=content_id, creator_id=creator_id, reasoning=reasoning)
+    except audit.AuditUnavailable as exc:
+        # An appeal that isn't recorded never reaches a reviewer. Saying it was
+        # received would be the worst answer here.
+        print(f"appeal not recorded: {exc}", file=sys.stderr, flush=True)
+        return _audit_unavailable()
 
     return jsonify({
         "content_id": content_id,

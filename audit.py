@@ -155,12 +155,24 @@ def read_requests(since: str | None = None) -> list[dict]:
     return rows
 
 
+class AuditUnavailable(RuntimeError):
+    """
+    Unit 9: the audit log couldn't be written (disk full, permissions, a
+    read-only volume). Raised instead of a bare OSError so the route can treat
+    it as a known condition: a decision that can't be recorded can't be
+    appealed, so it mustn't be handed out (criteria_extension.md E4).
+    """
+
+
 def _append(entry: dict) -> dict:
-    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
     line = json.dumps(entry, ensure_ascii=False)
-    with _lock:
-        with config.AUDIT_LOG.open("a", encoding="utf-8") as f:
-            f.write(line + "\n")
+    try:
+        config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+        with _lock:
+            with config.AUDIT_LOG.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except OSError as exc:
+        raise AuditUnavailable(f"audit log not writable: {exc}") from exc
     return entry
 
 
