@@ -2438,6 +2438,25 @@ breakdown and a load observation. Both measured with `run_perf.py` against
 `./serve.sh` with the real config (rate limiting on, one `creator_id` per
 request) → `results/unit9/perf_2026-11-18_1631.md`.
 
+*Third stretch item, a second measured improvement, declared before
+building* (this paragraph was committed before any code for it):
+- **The diagnosis it follows:** the ten-run cost measurement (What It
+  Costs). The first request after every start took **607 ms** against about
+  49 ms. Stage = the warm-up in `gunicorn.conf.py::post_worker_init`.
+  Mechanism = it *loads* GPT-2 but never *runs* it, so torch's one-time setup
+  for the first forward pass lands on the first writer.
+- **The one change:** the warm-up also scores one short sample text through
+  `detector.model_signal`, inside the same try/except, so a failure there
+  still can't take the worker down (E3).
+- **How I'll measure it:** E1–E5 × 3 again (`run_failures.py --label
+  second_improvement`) as a third run log in the same table format, plus
+  the same ten-run cost measurement, comparing run 1.
+- **What I expect:** run 1 drops to roughly the other nine (~50 ms); E1–E5
+  unchanged.
+- **What I expect it to cost:** each start gets slower by one forward pass
+  (well under a second), and E3's warm-up path does a little more work
+  before it fails.
+
 *Latency breakdown*, 50 warm `/submit`, from each request's `stages_ms`:
 
 | Stage | mean ms | p50 | p95 | share of the request |
