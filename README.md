@@ -2054,6 +2054,22 @@ hosted: a machine with at least 2 GB, running all the time. That makes the
 cost per hour, not per request. The second cost is the 3 minutes that one
 `run_failures.py` run takes. That's why it runs three trials, not ten.
 
+### Stretch (unit 9): declared before building
+
+Two stretch items, declared here before any code or measurement for them:
+
+1. **A latency breakdown.** `/submit` will record how long each stage takes
+   (input checks, signal one, signal two, combine and label, audit write) in
+   its request-log line as `stages_ms`. I'll report the breakdown over 50 warm
+   requests, measured the same way as the cost numbers.
+2. **A load observation.** "Normal" for this service is E1's pace, 1
+   submission per second. I'll send 10 per second for 60 seconds (600
+   requests, each with its own `creator_id` so rate limiting isn't what's
+   measured) against `./serve.sh`. I'll report what changed: throughput,
+   latency p50/p95/max, errors, memory, and whether requests queue. My
+   expectation, written now: one worker with 4 threads keeps up, because a
+   warm submit is about 33 ms, but p95 rises as requests start to overlap.
+
 ### What's still broken (unit 9)
 
 - **Rate-limit counts reset on every restart.** They live in the worker's
