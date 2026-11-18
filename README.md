@@ -1586,4 +1586,297 @@ second-language writer whose careful essay reads as machine-made.
 
 ---
 
+<!-- ═══════════════════════ UNIT 9 — THE EXTENSION ═══════════════════════ -->
+
+## Unit 9 — Extension: Harden Against Failure (Path B, local with logs)
+
+**The shape: B, harden against failure.** Provenance Guard worked when
+everything went right. Running it under a real server is what exposed its bad
+paths:
+- a cold start loads 550 MB of model weights inside the first request;
+- gunicorn kills a worker that goes quiet past its timeout;
+- the rate limiter's counts live in one worker's memory;
+- if the audit log can't be written, the writer gets a `500` and a decision
+  that was never recorded.
+
+`/appeal` finds submissions through that log, so an unrecorded decision is an
+appeal that will 404. The extension is the failure handling. The deploy and
+instrumentation work came with it. No new project and no rewrite: every
+change is to the service unit 8 tested.
+
+**Path B, and the arithmetic that decides it.** These are measured numbers,
+not estimates:
+
+| What has to be in memory | Measured |
+|---|---|
+| One gunicorn worker with GPT-2 loaded (resident memory) | **954–1,012 MB** (seven readings: the six E5 trials and the session below) |
+| Three workers (`gunicorn -w 3`, the usual advice) | **2,894 MB** in total |
+| The free tier this course uses | **512 MB** |
+
+One worker is already twice the free tier before a single request arrives.
+The model weights alone are 525 MB on disk (`model.safetensors`,
+548,105,171 bytes). A free host also wipes its disk when it sleeps, so it
+would download them again on every wake. So this runs locally with one
+documented command, and a committed record shows it running.
+
+### The run path
+
+```bash
+./serve.sh            # = .venv/bin/gunicorn -c gunicorn.conf.py app:app
+```
+
+Setup from a clean checkout, the environment (Python 3.13.1, pinned
+dependencies, the 525 MB model, ~1 GB RAM, ~1.5 GB disk) and every setting:
+**RUNNING.md → "Run it for real (Path B)"**. I tested this from a fresh clone
+(`results/unit9/clean_checkout_2026-11-18.md`): venv + install took 25 s from
+pip's cache, and `./serve.sh` had the model loaded 6 s later. I didn't test the
+first-ever 550 MB download, because the clone shared this machine's model
+cache.
+
+Each setting in `gunicorn.conf.py` comes from a measurement or a failure:
+
+| Setting | Why |
+|---|---|
+| `workers = 1` | X1: `-w 3` took memory to 2.9 GB, and the flood got through **10–12 times instead of 5**, because each worker counts separately |
+| `worker_class = "gthread"`, `threads = 4` | `/health` and `/ping` aren't stuck behind a scoring call. `detector._load` is now locked, so two threads can't both load the model |
+| `timeout = 120` | before hardening the model loaded inside the first request, and the slowest cold-start request took **19.8 s**, against gunicorn's default 30 s kill timeout |
+| `post_worker_init` loads the model | a cold start makes requests wait in the queue instead of loading inside one, and a failed load is logged instead of killing the worker's boot |
+
+### Instrumentation
+
+- **`logs/requests.jsonl`:** one line per HTTP request, whatever happens to
+  it: path, status, `latency_ms`, worker `pid`, `request_id` (also returned
+  as an `X-Request-ID` header), `creator_id`, and the response's `error`
+  code. The audit log records decisions. This records traffic, including
+  requests that never became a decision.
+- **`GET /metrics`:** computed from that file. Status counts, requests by
+  path, `/submit` latency p50/p95/max, the worker's peak memory, and whether
+  the model is loaded.
+- **gunicorn's stderr:** worker boots and deaths, and whether the model
+  loaded.
+
+### The criteria, run before and after
+
+Five criteria about the bad path, committed before anything was built
+(`criteria_extension.md`, commit `e2cbc0b`). `run_failures.py` runs each one
+three times against **real gunicorn**, every trial from a fresh start. It
+causes each failure for real: no fault-injection switches in the service.
+- **E2:** it `kill -9`s the worker.
+- **E3:** it points the service at a model that doesn't exist, with Hugging
+  Face offline.
+- **E4:** it makes the audit log file read-only.
+
+"Before" is RUNNING.md's original command (`gunicorn app:app`) on the code
+before hardening; "after" is `./serve.sh` on the hardened code.
+
+**Before:** `results/unit9/failures_2026-11-18_1535_before.md`
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| E1 | 30/30 → 200 during cold start | 30/30, slowest 3.54 s | 30/30, slowest 19.77 s | 30/30, slowest 4.71 s | **MET** |
+| E2 | 200 again ≤ 60 s after `kill -9`, worker death logged | 200 after 3.46 s, logged: true | 200 after 8.89 s, logged: true | 200 after 2.13 s, logged: true | **MET** |
+| E3 | 5/5 → 503 `detector_unavailable`, service stays up, 5 logged | 5/5 503, ping 200, 5/5 logged | 5/5 503, ping 200, 5/5 logged | 5/5 503, ping 200, 5/5 logged | **MET** |
+| E4 | 5/5 → 503 `audit_unavailable`, no content_id, 0 × 500 | 0/5 503, 5 × 500 | 0/5 503, 5 × 500 | 0/5 503, 5 × 500 | **MISSED** |
+| E5 | 25 sent = 25 logged = /metrics; flood 5×200 + 10×429 | 25 sent, 25 logged, counts match, flood 5×200 | 25 sent, 25 logged, counts match, flood 5×200 | 25 sent, 25 logged, counts match, flood 5×200 | **MET** |
+
+X1 (`gunicorn -w 3`, measurement only): flood `.....x.....xx..` = **12 × 200** where one worker allows 5; three workers' memory **2,870 MB**.
+
+**After:** `results/unit9/failures_2026-11-18_1540_after.md`
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| E1 | 30/30 → 200 during cold start | 30/30, slowest 4.24 s | 30/30, slowest 12.94 s | 30/30, slowest 3.62 s | **MET** |
+| E2 | 200 again ≤ 60 s after `kill -9`, worker death logged | 200 after 6.46 s, logged: true | 200 after 4.11 s, logged: true | 200 after 4.47 s, logged: true | **MET** |
+| E3 | 5/5 → 503 `detector_unavailable`, service stays up, 5 logged | 5/5 503, ping 200, 5/5 logged | 5/5 503, ping 200, 5/5 logged | 5/5 503, ping 200, 5/5 logged | **MET** |
+| E4 | 5/5 → 503 `audit_unavailable`, no content_id, 0 × 500 | 5/5 503, 0 × 500 | 5/5 503, 0 × 500 | 5/5 503, 0 × 500 | **MET** |
+| E5 | 25 sent = 25 logged = /metrics; flood 5×200 + 10×429 | 25 sent, 25 logged, counts match, flood 5×200 | 25 sent, 25 logged, counts match, flood 5×200 | 25 sent, 25 logged, counts match, flood 5×200 | **MET** |
+
+X1 (`gunicorn -w 3`, measurement only): flood `.....x.....xxxx` = **10 × 200** where one worker allows 5; three workers' memory **2,894 MB**.
+
+**What the hardening changed, and what it didn't:**
+- **E4 is the measured fix: 5 × `500` → 5 × `503 audit_unavailable`**, in all
+  three trials, with no `content_id` handed out. Before, the model scored the
+  text, the log write raised `PermissionError`, and the writer got Flask's
+  HTML error page with no error code. After:
+
+```json
+{
+  "summary": "5/5 \u2192 503 audit_unavailable with no content_id; 500s 0; content_ids handed out 0; /ping 200",
+  "results": [
+    {
+      "status": 503,
+      "seconds": 12.55,
+      "error": "audit_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.03,
+      "error": "audit_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.04,
+      "error": "audit_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.03,
+      "error": "audit_unavailable"
+    },
+    {
+      "status": 503,
+      "seconds": 0.03,
+      "error": "audit_unavailable"
+    }
+  ],
+  "request_log_lines": [
+    {
+      "timestamp": "2026-11-18T20:39:30.485+00:00",
+      "request_id": "5e187eea5d6e",
+      "pid": 37271,
+      "method": "POST",
+      "path": "/submit",
+      "status": 503,
+      "latency_ms": 101.2,
+      "creator_id": "e4_after_20261118153707_t1_0",
+      "error": "audit_unavailable"
+    },
+    {
+      "timestamp": "2026-11-18T20:39:30.517+00:00",
+      "request_id": "69d2d56f15bb",
+      "pid": 37271,
+      "method": "POST",
+      "path": "/submit",
+      "status": 503,
+      "latency_ms": 29.6,
+      "creator_id": "e4_after_20261118153707_t1_1",
+      "error": "audit_unavailable"
+    }
+  ]
+}
+```
+
+- **E1, E2 and E3 already passed before, on this machine.**
+  - **E2 needed no fix from me:** gunicorn's master restarts a killed worker
+    on its own.
+  - **E3 needed none either:** the route already turned `DetectorUnavailable`
+    into a 503.
+  - **E1 passed, but it was the closest call:** before, the first request
+    carried the model load, and the slowest cold-start request took 19.8 s,
+    against a 30 s kill timeout. On a laptop half as fast, that loops forever: load, killed,
+    restart, load. The hardened config moves the load to worker start and
+    raises the timeout to 120 s. This M4 Pro never got near 30 s, so the runs
+    can't *show* that protection. Recovery times are the same within noise
+    (E2: 2.1–8.9 s before, 4.1–6.5 s after).
+- **E3 after hardening proves something new:** loading the model at worker
+  start is a new way to fail, and it didn't break the boot. The worker logged
+  `detector NOT loaded, serving 503s for /submit` and stayed up, in all three
+  trials.
+
+The gunicorn log from E2, after (trial 1), showing the kill and the
+automatic restart:
+
+```
+[2026-11-18 15:38:39 -0500] [37243] [INFO] Booting worker with pid: 37243
+[2026-11-18 15:38:45 -0500] [37243] [INFO] detector loaded: gpt2
+[2026-11-18 15:38:45 -0500] [37240] [ERROR] Worker (pid:37243) was sent SIGKILL! Perhaps out of memory?
+[2026-11-18 15:38:45 -0500] [37245] [INFO] Booting worker with pid: 37245
+```
+
+### Run record — a real session
+
+`PORT=5001 ./serve.sh` on 2026-11-18. The traffic:
+- `/health`;
+- three submissions (`human`, `ai`, `unsure`);
+- an appeal;
+- a too-short submission;
+- a 5-request burst from one creator (4 × 200, then a 429: that creator's
+  earlier submission counted toward the 5);
+- `/content/<id>` and `/metrics`;
+- a SIGTERM shutdown.
+
+Warm `/submit`: p50 **26 ms**, p95 **82 ms**; peak memory **954 MB**; **0**
+server errors. The full record, including all 10 audit entries, is in
+`results/unit9/session_2026-11-18.md`.
+
+gunicorn (stderr):
+```
+[2026-11-18 15:41:24 -0500] [37388] [INFO] Starting gunicorn 23.0.0
+[2026-11-18 15:41:24 -0500] [37388] [INFO] Listening at: http://127.0.0.1:5001 (37388)
+[2026-11-18 15:41:24 -0500] [37388] [INFO] Using worker: gthread
+[2026-11-18 15:41:24 -0500] [37392] [INFO] Booting worker with pid: 37392
+[2026-11-18 15:41:26 -0500] [37392] [INFO] detector loaded: gpt2
+`loss_type=None` was set in the config but it is unrecognized. Using the default loss: `ForCausalLMLoss`.
+[2026-11-18 15:41:27 -0500] [37388] [INFO] Handling signal: term
+[2026-11-18 15:41:28 -0500] [37392] [INFO] Worker exiting (pid: 37392)
+[2026-11-18 15:41:28 -0500] [37388] [INFO] Shutting down: Master
+```
+
+`logs/requests.jsonl`, every request in the session:
+```json
+{"timestamp": "2026-11-18T20:41:26.526+00:00", "request_id": "c71016b7745a", "pid": 37392, "method": "GET", "path": "/health", "status": 200, "latency_ms": 1.9, "creator_id": null, "error": null}
+{"timestamp": "2026-11-18T20:41:26.922+00:00", "request_id": "84b061f43858", "pid": 37392, "method": "GET", "path": "/health", "status": 200, "latency_ms": 1.8, "creator_id": null, "error": null}
+{"timestamp": "2026-11-18T20:41:26.925+00:00", "request_id": "cf70f542ea9f", "pid": 37392, "method": "GET", "path": "/health", "status": 200, "latency_ms": 1.7, "creator_id": null, "error": null}
+{"timestamp": "2026-11-18T20:41:27.008+00:00", "request_id": "f3d06d2289c2", "pid": 37392, "method": "POST", "path": "/submit", "status": 200, "latency_ms": 82.0, "creator_id": "session_writer_a", "error": null}
+{"timestamp": "2026-11-18T20:41:27.039+00:00", "request_id": "4daa080f9398", "pid": 37392, "method": "POST", "path": "/submit", "status": 200, "latency_ms": 30.2, "creator_id": "session_writer_b", "error": null}
+{"timestamp": "2026-11-18T20:41:27.067+00:00", "request_id": "d1811d9e4e06", "pid": 37392, "method": "POST", "path": "/submit", "status": 200, "latency_ms": 26.4, "creator_id": "session_writer_c", "error": null}
+{"timestamp": "2026-11-18T20:41:27.070+00:00", "request_id": "4c5d2cdeeb7e", "pid": 37392, "method": "POST", "path": "/appeal", "status": 200, "latency_ms": 1.9, "creator_id": null, "error": null}
+{"timestamp": "2026-11-18T20:41:27.071+00:00", "request_id": "2af24681103b", "pid": 37392, "method": "POST", "path": "/submit", "status": 400, "latency_ms": 0.3, "creator_id": "session_writer_a", "error": "text_too_short"}
+{"timestamp": "2026-11-18T20:41:27.098+00:00", "request_id": "c5c6a19549d8", "pid": 37392, "method": "POST", "path": "/submit", "status": 200, "latency_ms": 25.6, "creator_id": "session_writer_c", "error": null}
+{"timestamp": "2026-11-18T20:41:27.125+00:00", "request_id": "9a34fb98e474", "pid": 37392, "method": "POST", "path": "/submit", "status": 200, "latency_ms": 25.9, "creator_id": "session_writer_c", "error": null}
+{"timestamp": "2026-11-18T20:41:27.152+00:00", "request_id": "266fa2154013", "pid": 37392, "method": "POST", "path": "/submit", "status": 200, "latency_ms": 25.8, "creator_id": "session_writer_c", "error": null}
+{"timestamp": "2026-11-18T20:41:27.179+00:00", "request_id": "e95d4a21e4db", "pid": 37392, "method": "POST", "path": "/submit", "status": 200, "latency_ms": 25.9, "creator_id": "session_writer_c", "error": null}
+{"timestamp": "2026-11-18T20:41:27.181+00:00", "request_id": "d892e6168c08", "pid": 37392, "method": "POST", "path": "/submit", "status": 429, "latency_ms": 0.3, "creator_id": "session_writer_c", "error": "rate_limited"}
+{"timestamp": "2026-11-18T20:41:27.184+00:00", "request_id": "f7a9bd93e91f", "pid": 37392, "method": "GET", "path": "/content/43407a6d-9241-4cb1-a1ae-dae1c245b8f1", "status": 200, "latency_ms": 1.8, "creator_id": null, "error": null}
+{"timestamp": "2026-11-18T20:41:27.186+00:00", "request_id": "1b47ebb73cd7", "pid": 37392, "method": "GET", "path": "/metrics", "status": 200, "latency_ms": 0.8, "creator_id": null, "error": null}
+```
+
+`logs/audit.jsonl`, three of the session's ten entries: a decision, the
+appeal, and the rate-limit rejection:
+```json
+{"timestamp": "2026-11-18T20:41:27+00:00", "content_id": "43407a6d-9241-4cb1-a1ae-dae1c245b8f1", "creator_id": "session_writer_b", "guess": "ai", "model_score": 0.8498, "style_score": 0.9996, "combined_score": 0.9247, "label": "Our automated checks found strong patterns that are common in AI-generated writing. This is an estimate, not proof: the checks can be wrong, especially about plain, straightforward writing. If you wrote this yourself, you can ask for a review and a person will look at it.", "status": "decided", "checker_directed": false}
+{"timestamp": "2026-11-18T20:41:27+00:00", "content_id": "43407a6d-9241-4cb1-a1ae-dae1c245b8f1", "creator_id": "session_writer_b", "event": "appeal", "status": "under_review", "reasoning": "I wrote this for my economics class; I can share my notes."}
+{"timestamp": "2026-11-18T20:41:27+00:00", "content_id": null, "creator_id": "session_writer_c", "guess": null, "model_score": null, "style_score": null, "combined_score": null, "label": null, "status": "rejected", "event": "rejected", "reason": "rate_limited", "limit": "5 per 1 minute"}
+```
+
+### What's still broken (unit 9)
+
+- **Rate-limit counts reset on every restart.** They live in the worker's
+  memory, so a crash (E2) or a restart wipes them.
+  - *What I'd do:* a shared store (Redis) would survive restarts and allow
+    more than one worker.
+  - *Why I stopped:* that's a second service to run and document for a
+    laptop deployment. With one worker the counts are correct between
+    restarts, which E5 measures.
+- **One worker is a ceiling.** Scoring runs on 4 threads in one process. A
+  real load beyond that needs more memory per worker (1 GB each), not a
+  config change.
+- **Both logs grow forever,** and `/metrics` re-reads `requests.jsonl` on
+  every call, so it gets slower as the file grows.
+  - *What I'd do:* rotate the file daily and keep running counters in
+    memory.
+  - *Why I stopped:* at this volume (about 1,000 lines) it costs
+    milliseconds, and rotation is a policy decision (how long to keep an
+    audit trail) that I haven't made.
+- **The protection against a slow cold start is argued, not measured.** On
+  this machine, E1 passed before and after. I'd want one run on a slower
+  laptop, or with the model on a slow disk, before calling it proven.
+- **A request-log write failure is only reported to stderr.** That's
+  deliberate, so tracing can't take the service down. But a full disk would
+  silently thin out the operational numbers until someone reads the error
+  log.
+
+**How I used AI (unit 9).** Claude Code (Claude Opus 5.5) chose the shape
+from the codebase, wrote the five criteria and committed them before any
+code, then built the harness, instrumentation and hardening.
+- **The before-run was its own idea,** and it changed the write-up. Without
+  it, five MET verdicts after hardening would have looked like five fixes.
+  With it, the honest count is one measured fix (E4), one plausible
+  protection the hardware couldn't show (E1), and two that gunicorn and the
+  existing route already handled (E2, E3).
+- **It caught that gunicorn auto-loads `./gunicorn.conf.py`.** Without that,
+  the "before" baseline would have been run with the fixes already applied.
+
+---
+
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**

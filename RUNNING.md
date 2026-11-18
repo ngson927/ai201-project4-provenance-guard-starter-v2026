@@ -232,6 +232,74 @@ system doesn't fit its host *before* you spend an evening watching it get
 killed is the skill unit 9 is actually testing. Write the arithmetic above in
 your write-up; that's the deliverable.
 
+### Run it for real (Path B) — the one command
+
+This is how this repo runs as a service: tested from a clean checkout on
+2026-11-18 (`results/unit9/clean_checkout_2026-11-18.md`).
+
+**Once, from a clean checkout:**
+
+```bash
+git clone https://github.com/ngson927/ai201-project4-provenance-guard-starter-v2026
+cd ai201-project4-provenance-guard-starter-v2026
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+**Then, every time, the one command:**
+
+```bash
+./serve.sh                  # http://127.0.0.1:5000
+PORT=5001 ./serve.sh        # on macOS, AirPlay Receiver often holds 5000
+```
+
+`serve.sh` runs `gunicorn -c gunicorn.conf.py app:app`. That's one worker,
+four threads, a 120 s timeout, and the model loaded before the first request.
+`Ctrl-C` (or `kill -TERM <master pid>`) stops it cleanly. The first start on a
+new machine downloads GPT-2, about 550 MB, so that one takes minutes, not
+seconds.
+
+**Is it up?**
+
+```bash
+curl http://127.0.0.1:5000/health        # "detector_loaded": true once warm
+curl http://127.0.0.1:5000/metrics       # request counts, status codes, /submit latency, memory
+```
+
+**Where the record goes:**
+
+| File | What's in it |
+|---|---|
+| `logs/requests.jsonl` | one line per HTTP request: path, status, latency, worker pid, request id (also sent back as `X-Request-ID`) |
+| `logs/audit.jsonl` | every decision, appeal and refusal (the nine fields) |
+| stderr | gunicorn: worker boots, deaths, tracebacks, whether the model loaded |
+
+**What the environment needs** (measured on the machine it was tested on):
+
+| | |
+|---|---|
+| Python | 3.11–3.13 (tested on 3.13.1) |
+| Dependencies | `requirements.txt`, pinned with lower and upper bounds. Tested with Flask 3.1.3, Flask-Limiter 3.12, gunicorn 23.0.0, torch 2.15.0, transformers 4.57.6, requests 2.34.2 |
+| Model files | `gpt2` from Hugging Face, cached in `~/.cache/huggingface/hub/models--gpt2`: **525 MB on disk** (`model.safetensors` 548,105,171 bytes, plus tokenizer files ~2.9 MB) |
+| Memory | **about 1,000 MB resident for the one worker** with the model loaded (measured 954–1,012 MB) |
+| Disk | **about 1.5 GB**: the venv with torch measured 947 MB, plus the 525 MB model |
+| Network | only for the first model download; after that it runs offline |
+
+**Settings it reads** (`config.py`, `gunicorn.conf.py`):
+
+| Variable | Default | What it does |
+|---|---|---|
+| `PORT` | `5000` | the port gunicorn binds |
+| `HOST` | `127.0.0.1` | loopback; `0.0.0.0` opens it to the network |
+| `AI201_LOG_DIR` | `logs/` | where both logs go |
+| `AI201_RATE_LIMITS` | `1` | `0` turns rate limiting off |
+| `AI201_DETECTOR_MODEL` | `gpt2` | which model signal one loads |
+
+**Why one worker, and why it stays one:** each gunicorn worker loads its own
+copy of GPT-2, so `-w 3` measured about 2.9 GB. The rate limiter keeps its
+counts inside a worker, so `-w 3` also let 12 of a 15-request flood through
+instead of 5. Both are recorded in `results/unit9/` (X1).
+
 ---
 
 ## Where everything lives
@@ -246,6 +314,9 @@ your write-up; that's the deliverable.
 | `audit.py` | The audit log writer. Given to you |
 | `run_attacks.py` | Runs the attack set — **unit 8** |
 | `run_eval.py` | Runs your criteria three times — **unit 8** |
+| `serve.sh`, `gunicorn.conf.py` | The real run path — **unit 9** |
+| `run_failures.py` | Runs the unit 9 extension criteria against real gunicorn — **unit 9** |
+| `logs/requests.jsonl` | One line per HTTP request — **unit 9** |
 | `scenarios.py` | What your test runs. **You fill this in** |
 | `criteria.md` | Your five criteria. **You write all five** |
 | `logs/audit.jsonl` | Your audit log. **Commit it** |
