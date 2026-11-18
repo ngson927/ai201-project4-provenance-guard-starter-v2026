@@ -244,7 +244,17 @@ git clone https://github.com/ngson927/ai201-project4-provenance-guard-starter-v2
 cd ai201-project4-provenance-guard-starter-v2026
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
+.venv/bin/python detector.py        # downloads GPT-2 (~550 MB) once, with progress, and scores a sample
 ```
+
+Don't skip the last line. I followed these instructions from a fresh clone
+with an empty model cache (2026-11-18). Without it, the download happens
+inside `./serve.sh`'s first start, and it took **3 min 53 s**. In that time
+the log said nothing after "Booting worker", and `curl …/health` just hung,
+because requests wait in the queue until the model is loaded. That looks
+exactly like a frozen service. Since then, `serve.sh` logs a "loading the
+detector model…" line first, but downloading up front is still the way to
+see progress.
 
 **Then, every time, the one command:**
 
@@ -255,9 +265,14 @@ PORT=5001 ./serve.sh        # on macOS, AirPlay Receiver often holds 5000
 
 `serve.sh` runs `gunicorn -c gunicorn.conf.py app:app`. That's one worker,
 four threads, a 120 s timeout, and the model loaded before the first request.
-`Ctrl-C` (or `kill -TERM <master pid>`) stops it cleanly. The first start on a
-new machine downloads GPT-2, about 550 MB, so that one takes minutes, not
-seconds.
+`Ctrl-C` (or `kill -TERM <master pid>`) stops it cleanly. With the model
+already downloaded, a start takes about 2–20 s before the first answer. While
+it loads, requests wait rather than fail.
+
+On macOS, AirPlay Receiver listens on port 5000 on all addresses. `./serve.sh`
+still binds `127.0.0.1:5000` and answers there (tested). But
+`http://localhost:5000` can reach AirPlay instead and return a bare `403`.
+Use `127.0.0.1`, or `PORT=5001`.
 
 **Is it up?**
 

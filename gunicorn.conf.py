@@ -52,6 +52,11 @@ def post_worker_init(worker):
     """
     import detector
 
+    # Found by following RUNNING.md on a clean machine: the first-ever start
+    # downloads ~550 MB here and the log went silent for 3m53s. Say so first.
+    worker.log.info("loading the detector model (%s); on a machine that has never "
+                    "downloaded it this fetches ~550 MB and takes minutes",
+                    os.getenv("AI201_DETECTOR_MODEL", "gpt2"))
     try:
         detector.warm_up()
         worker.log.info("detector loaded: %s", os.getenv("AI201_DETECTOR_MODEL", "gpt2"))

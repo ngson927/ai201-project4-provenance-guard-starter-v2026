@@ -1789,8 +1789,20 @@ RUNNING.md → "Run it for real (Path B)" holds:
 
 I tested it from a fresh clone (`results/unit9/clean_checkout_2026-11-18.md`).
 The venv and install took 25 s from pip's cache, and `./serve.sh` had the
-model loaded 6 s later. The first-ever 550 MB download wasn't tested, because
-the clone shared this machine's model cache.
+model loaded 6 s later. That test was too forgiving: it cloned locally and
+reused this machine's model cache. So I followed RUNNING.md **literally**: a
+clone from GitHub, an empty model cache, the default port. **It worked, but
+it found what a reader would hit.**
+- **The first start downloads 550 MB inside the worker's startup:**
+  **3 min 53 s**. The log said nothing after "Booting worker", and the
+  documented `curl …/health` just hung, because requests queue until the
+  model is loaded. That reads as "frozen".
+- **What changed:** RUNNING.md now says to run `.venv/bin/python detector.py`
+  first (the download, with progress), and explains the wait. `serve.sh` now
+  logs "loading the detector model… takes minutes" before it starts.
+- **Port 5000 on macOS:** AirPlay listens on all addresses there, yet
+  `./serve.sh` bound `127.0.0.1:5000` and answered. RUNNING.md now warns
+  that `localhost:5000` can reach AirPlay instead.
 
 *Why Path B, measured:*
 
@@ -1809,7 +1821,7 @@ the clone shared this machine's model cache.
 | `timeout = 120` | cold-start requests took up to **22.4 s** on this machine; the default 30 s kill timeout was closer than it looked |
 | model loaded in `post_worker_init` | a cold start makes requests wait in the queue instead of loading inside one; a failed load is logged, not fatal |
 
-**Structured Logging**
+**Instrumentation**
 
 Every request, whatever happens to it, writes one JSON line to
 `logs/requests.jsonl` with named fields:
@@ -1865,10 +1877,44 @@ first runs, so older lines in the file don't have them. A full earlier session
 (startup, three submissions, an appeal, a refusal, a 429, shutdown) is in
 `results/unit9/session_2026-11-18.md`.
 
-**Cost**
+**What It Costs**
 
 There's no API spend and no tokens: the model runs locally. One run costs
-compute, memory and time. I measured these on `./serve.sh` (Apple M4 Pro,
+compute, memory and time.
+
+*One run, measured ten times.* I ran ten `/submit` calls against a warm
+`./serve.sh`, one at a time, 0.5 s apart:
+- **client wall time:** a timer around the HTTP call;
+- **worker CPU:** `ps -o cputime` on the worker before and after each call
+  (10 ms resolution);
+- **server time and the signal-one share:** each request's own line in
+  `requests.jsonl`.
+
+The file is `results/unit9/cost_10runs_2026-11-18.md`.
+
+| Run | Words | Client wall ms | Server `latency_ms` | of which signal one | Worker CPU ms | Guess |
+|---|---|---|---|---|---|---|
+| 1 | 106 | 607.3 | 602.7 | 601.49 | 360 | human |
+| 2 | 92 | 47.2 | 43.3 | 42.04 | 120 | ai |
+| 3 | 119 | 54.3 | 50.7 | 49.56 | 160 | unsure |
+| 4 | 84 | 45.5 | 41.5 | 40.4 | 110 | unsure |
+| 5 | 109 | 50.0 | 46.3 | 45.11 | 140 | human |
+| 6 | 106 | 52.0 | 47.9 | 46.69 | 140 | human |
+| 7 | 92 | 43.7 | 40.1 | 38.98 | 120 | ai |
+| 8 | 119 | 52.4 | 48.4 | 47.33 | 130 | unsure |
+| 9 | 84 | 44.5 | 40.6 | 39.36 | 120 | unsure |
+| 10 | 109 | 51.6 | 47.5 | 46.31 | 140 | human |
+| **average** | | **104.8** | **100.9** | **99.7** | **154** | |
+
+**The cost of one run: 105 ms of wall time and 154 ms of CPU, averaged over
+ten.** That average is dominated by **run 1 (607 ms)**: the first real
+request after a start. The warm-up loads the model but never runs it, so the
+first forward pass pays torch's one-time setup. Runs 2–10 average **49 ms
+wall / 131 ms CPU**, and that's the steady-state price.
+
+The bigger measurement below (50 back-to-back requests) came out cheaper,
+at 33 ms / 94 ms. Requests 0.5 s apart let the CPU idle down in between,
+which the load test showed too. I measured these on `./serve.sh` (Apple M4 Pro,
 24 GB), not estimated them:
 
 | One… | Wall time | CPU time | Memory | How I got it |
@@ -1911,6 +1957,23 @@ Five criteria, all about the extension's bad paths, written and committed
 | E3 | A missing model is a clear 503, never a crash | 5/5 → 503 `detector_unavailable`; `/ping`, `/health` 200; 5 rejections logged |
 | E4 | A decision that can't be logged isn't handed out | 5/5 → 503 `audit_unavailable`, no `content_id`; 0 × 500 |
 | E5 | Every request leaves a trace, and the numbers match | 25 sent = 25 logged = `/metrics`; flood exactly 5 × 200 + 10 × 429 |
+
+*Self-check, done honestly after the results, and not used to edit
+anything.* Each criterion has a number or a plainly visible target, is about
+the extension's bad path, and is checked by a script. Two weak spots:
+- **"Why not stricter or looser" is explicit for only three of the five.**
+  E1 says why 30/30, E2 why 60 s, and E5 why the counts must match exactly.
+  E3 and E4 say "5 of 5" but never why five requests and not fifty. The real
+  answer is that both failures are deterministic (a missing file and a
+  read-only file fail the same way every time), so five per trial shows it
+  repeats. That reason belonged in the criterion.
+- **E1 depends on the hardware.** On this M4 Pro the model loads well inside
+  even the default 30 s timeout, so E1 passed before the fix as well. It
+  shows that cold-start requests succeed. It doesn't show that the timeout
+  change is needed (The Improvement says this).
+
+Neither makes a criterion unmeasurable, so neither is revised. Editing them
+after the results would undo the order the commit history is there to show.
 
 `run_failures.py` runs each one **three times against real gunicorn**,
 every trial from a fresh start. It causes each failure for real: it kills
@@ -2123,6 +2186,12 @@ p95 in each 10-second window at 10×: 40.7, 39.25, 39.14, 40.04, 40.2, 40.28 ms.
     (or a proxy in front) log queue time.
   - *Why I stopped:* found it while writing this up; the fix needs a component
     the service doesn't have.
+- **The first request after every start is about 12× slower (607 ms vs
+  ~49 ms).** Found by the ten-run cost measurement. The warm-up loads the
+  model but never runs it, so the first writer pays torch's one-time setup.
+  - *What I'd do:* score one short sample text inside `post_worker_init`.
+  - *Why I stopped:* it's a change to the system after the criteria results,
+    outside the one improvement. It's a one-line fix, recorded here.
 - **Load past ~26 per second is untested.** I didn't test where queueing
   starts.
 - **Detection itself is unchanged**, by design. Unit 8's What's Still Broken
