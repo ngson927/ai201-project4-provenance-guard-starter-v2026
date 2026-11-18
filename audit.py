@@ -120,6 +120,41 @@ def log_rejection(creator_id: str, reason: str, **extra) -> dict:
     })
 
 
+def log_request(entry: dict) -> None:
+    """
+    Unit 9: one line per HTTP request to logs/requests.jsonl.
+
+    Best effort on purpose. A request that can't be traced is a gap; a request
+    that fails *because* it couldn't be traced is an outage. A write failure
+    goes to stderr (gunicorn's error log) instead of raising.
+    """
+    import sys
+
+    try:
+        config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(entry, ensure_ascii=False)
+        with _lock:
+            with config.REQUEST_LOG.open("a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except OSError as exc:
+        print(f"request log write failed: {exc}", file=sys.stderr, flush=True)
+
+
+def read_requests(since: str | None = None) -> list[dict]:
+    """The request log, oldest first; `since` is an ISO timestamp, inclusive."""
+    if not config.REQUEST_LOG.exists():
+        return []
+    rows = []
+    for line in config.REQUEST_LOG.read_text(encoding="utf-8").splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if since is None or row.get("timestamp", "") >= since:
+            rows.append(row)
+    return rows
+
+
 def _append(entry: dict) -> dict:
     config.LOG_DIR.mkdir(parents=True, exist_ok=True)
     line = json.dumps(entry, ensure_ascii=False)

@@ -119,6 +119,11 @@ RATE_LIMIT_STORAGE = "memory://"
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 
-LOG_DIR = ROOT / "logs"
+# AI201_LOG_DIR moves both logs, e.g. for a failure test that needs a log the
+# service can't write (unit 9, criteria_extension.md E4). Default unchanged.
+LOG_DIR = Path(os.getenv("AI201_LOG_DIR", str(ROOT / "logs")))
 AUDIT_LOG = LOG_DIR / "audit.jsonl"
+# Unit 9: one line per HTTP request (path, status, latency) — the operational
+# trace. The audit log records decisions; this records traffic.
+REQUEST_LOG = LOG_DIR / "requests.jsonl"
 RESULTS_DIR = ROOT / "results"

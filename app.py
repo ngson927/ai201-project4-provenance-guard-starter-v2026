@@ -24,10 +24,16 @@ Routes:
     GET  /health      is the service up, and is the model loaded
 """
 
+import os
 import re
+import resource
+import statistics
+import sys
+import time
 import uuid
+from datetime import datetime, timezone
 
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request
 
 import audit
 import config
@@ -35,6 +41,93 @@ import scoring
 import stylometry
 
 app = Flask(__name__)
+
+STARTED_AT = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+# ── Instrumentation — UNIT 9 ──────────────────────────────────────────────────
+# Every request, whatever happens to it, gets one line in logs/requests.jsonl:
+# path, status, latency, which worker served it. The audit log can't show a
+# request that never became a decision, or how long anything took.
+
+@app.before_request
+def _start_request():
+    g.request_started = time.perf_counter()
+    g.request_id = uuid.uuid4().hex[:12]
+
+
+@app.after_request
+def _record_request(response):
+    started = g.get("request_started")
+    payload = request.get_json(silent=True) if request.is_json else None
+    body = response.get_json(silent=True) if response.is_json else None
+    audit.log_request({
+        "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "request_id": g.get("request_id"),
+        "pid": os.getpid(),
+        "method": request.method,
+        "path": request.path,
+        "status": response.status_code,
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1) if started else None,
+        "creator_id": payload.get("creator_id") if isinstance(payload, dict)
+                      and isinstance(payload.get("creator_id"), str) else None,
+        "error": body.get("error") if isinstance(body, dict) else None,
+    })
+    if g.get("request_id"):
+        response.headers["X-Request-ID"] = g.request_id
+    return response
+
+
+def _peak_rss_mb() -> float:
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # macOS reports bytes, Linux kilobytes.
+    return round(peak / (1024 * 1024) if sys.platform == "darwin" else peak / 1024, 1)
+
+
+@app.get("/metrics")
+def metrics():
+    """
+    The numbers, computed from the request log.
+
+        curl "http://127.0.0.1:5000/metrics"                     # since this worker started
+        curl "http://127.0.0.1:5000/metrics?since=2026-11-18T…"  # since a moment you choose
+
+    /metrics' own requests are left out of the counts.
+    """
+    import detector
+
+    since = request.args.get("since") or STARTED_AT
+    rows = [r for r in audit.read_requests(since) if r.get("path") != "/metrics"]
+    by_status, by_path = {}, {}
+    for r in rows:
+        by_status[str(r.get("status"))] = by_status.get(str(r.get("status")), 0) + 1
+        by_path[r.get("path")] = by_path.get(r.get("path"), 0) + 1
+    submit_ms = sorted(r["latency_ms"] for r in rows
+                       if r.get("path") == "/submit" and r.get("status") == 200
+                       and r.get("latency_ms") is not None)
+
+    def pct(p):
+        return submit_ms[min(len(submit_ms) - 1, int(round(p * (len(submit_ms) - 1))))] if submit_ms else None
+
+    return jsonify({
+        "since": since,
+        "worker_pid": os.getpid(),
+        "worker_started_at": STARTED_AT,
+        "detector_loaded": detector._model is not None,
+        "peak_rss_mb": _peak_rss_mb(),
+        "requests": len(rows),
+        "by_status": by_status,
+        "by_path": by_path,
+        "rate_limited": by_status.get("429", 0),
+        "server_errors": sum(n for s, n in by_status.items() if s.startswith("5")),
+        "submit_latency_ms": {
+            "count": len(submit_ms),
+            "p50": pct(0.50),
+            "p95": pct(0.95),
+            "max": submit_ms[-1] if submit_ms else None,
+            "mean": round(statistics.mean(submit_ms), 1) if submit_ms else None,
+        },
+    })
 
 
 # ── Rate limiting — UNIT 8 ────────────────────────────────────────────────────
