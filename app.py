@@ -72,10 +72,22 @@ def _record_request(response):
         "creator_id": payload.get("creator_id") if isinstance(payload, dict)
                       and isinstance(payload.get("creator_id"), str) else None,
         "error": body.get("error") if isinstance(body, dict) else None,
+        # /submit only: what came in (size, never the text itself), what came
+        # out, and where the time went (unit 9 stretch: latency breakdown).
+        "in": g.get("io_in"),
+        "out": g.get("io_out"),
+        "stages_ms": g.get("stages") or None,
     })
     if g.get("request_id"):
         response.headers["X-Request-ID"] = g.request_id
     return response
+
+
+def _stage(name: str, since: float) -> float:
+    """Record how long a /submit stage took, in ms; returns the new start."""
+    now = time.perf_counter()
+    g.stages[name] = round((now - since) * 1000, 2)
+    return now
 
 
 def _peak_rss_mb() -> float:
@@ -320,6 +332,8 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
+    g.stages = {}
+    t = time.perf_counter()
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return _refuse("unknown", "invalid_json", "Send a JSON object with 'text' and 'creator_id'.")
@@ -332,6 +346,7 @@ def submit():
     if not isinstance(text, str) or not text.strip():
         return _refuse(log_creator, "missing_text", "There's no text to check. Send it in the 'text' field.")
     text = text.strip()
+    g.io_in = {"text_words": len(text.split()), "text_chars": len(text)}
     if len(text) > MAX_TEXT_CHARS:
         return _refuse(log_creator, "text_too_long",
                        f"That's too long to check. Send at most {MAX_TEXT_CHARS:,} characters.")
@@ -344,6 +359,7 @@ def submit():
                        f"Send a 'creator_id' of 1 to {MAX_CREATOR_ID_CHARS} characters.")
 
     content_id = str(uuid.uuid4())
+    t = _stage("checks", t)
 
     import detector
 
@@ -352,8 +368,10 @@ def submit():
     except detector.DetectorUnavailable:
         return _refuse(creator_id, "detector_unavailable",
                        "The checker isn't available right now. Try again shortly.", status=503)
+    t = _stage("signal_one", t)
 
     style_score = stylometry.style_signal(text)
+    t = _stage("signal_two", t)
     confidence = scoring.combine_signals(model_score, style_score)
 
     guess, label = scoring.score_to_label(confidence)
@@ -361,6 +379,7 @@ def submit():
     checker_directed = bool(CHECKER_DIRECTED.search(text))
     if checker_directed and guess == "human":
         guess, label = "unsure", scoring.LABEL_UNSURE
+    t = _stage("combine_label", t)
 
     # Unit 9 (criteria_extension.md E4): /appeal finds a submission through
     # this log. A content_id handed out without an entry is an appeal that
@@ -379,6 +398,9 @@ def submit():
     except audit.AuditUnavailable as exc:
         print(f"submit refused, decision not recorded: {exc}", file=sys.stderr, flush=True)
         return _audit_unavailable()
+    _stage("audit_write", t)
+    g.io_out = {"content_id": content_id, "guess": guess, "confidence": confidence,
+                "model_score": model_score, "style_score": style_score}
 
     return jsonify({
         "content_id": content_id,
