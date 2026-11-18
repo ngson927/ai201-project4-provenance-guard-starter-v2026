@@ -4,7 +4,7 @@ How Provenance Guard runs for real — unit 9, Path B (local, with logs).
     ./serve.sh                     # which runs: gunicorn -c gunicorn.conf.py app:app
 
 Every number below has a reason; most of them were measured, not guessed
-(README → Unit 9, results/unit9/).
+(README → Capstone, results/unit9/).
 """
 
 import os
