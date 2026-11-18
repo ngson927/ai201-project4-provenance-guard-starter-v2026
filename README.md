@@ -2092,6 +2092,48 @@ X1 (`gunicorn -w 3`, measurement only): flood `.....x.....xxxx` = **10 × 200** 
 No other criterion missed. E1–E3 and E5 passed in all four runs. On this
 machine they weren't failing before; the next section says what that means.
 
+*Final verdicts, after the one improvement:*
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| E1 | 30/30 → 200 during a cold start | 30/30 | 30/30 | 30/30 | **MET** |
+| E2 | a 200 ≤ 60 s after `kill -9`, death logged | 2.07 s | 1.99 s | 1.94 s | **MET** |
+| E3 | 5/5 → 503 `detector_unavailable`, stays up, 5 logged | 5/5 | 5/5 | 5/5 | **MET** |
+| E4 | 5/5 → 503 `audit_unavailable`, no content_id, 0 × 500 | 5/5 | 5/5 | 5/5 | **MET** |
+| E5 | 25 = 25 = `/metrics`, flood 5 × 200 + 10 × 429 | 25/25 | 25/25 | 25/25 | **MET** |
+
+*A pattern?* There was one miss, so there's no pattern across misses to
+find. The criterion that missed is the only one whose failure happens
+*after* the expensive work: the text was scored, then the result was lost.
+The other four bad paths fail before any decision exists.
+
+*All five met. Were my targets set low? Partly, yes.*
+- **E1 is the loosest.** It only asked that cold-start requests *succeed*.
+  Every trial did, but the slowest request waited **22.4 s**, and the request
+  log recorded about 125 ms for it (What's Still Broken). Nobody would call a
+  22-second wait for a submission "fine".
+- **E2's 60 s allowance is twice the worst recovery ever measured (24.4 s)**
+  and about 30× the typical one (about 2 s in the final run).
+- **E3 and E4 are deterministic failures.** A missing model or a read-only
+  file fails the same way every time, so 5 of 5 is easy to hold once the
+  handling exists. They test that the handling exists, not how well it
+  copes.
+- **E5 is the one I'd keep as it is.** An exact match is already as strict
+  as a count can be.
+
+*The criterion I'd tighten: E1, to "30/30 → 200 **and** no request sent
+during a cold start waits more than 10 s, as measured by the client".* The
+service would **miss** that today in all three trials (22.4, 17.8 and 21.2 s
+in the final run). That's the point: the tightened target points at the two
+real problems this unit uncovered:
+- model loads on this machine vary from 2 to 22 s;
+- the wait is invisible to my own logging.
+
+It would also need the client-side measurement the harness already takes,
+because `latency_ms` can't see queue time. I'm not revising E1 in
+`criteria.md`. It isn't broken; it measured exactly what it said. Tightening
+it is the next unit's starting point, not a fix to this one.
+
 **The Improvement**
 
 *The change:* `audit._append` turns an `OSError` into
